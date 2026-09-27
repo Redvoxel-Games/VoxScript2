@@ -14,7 +14,6 @@ public enum ValueType
     
     Function,
     Table,
-    Tuple,
 }
 
 public readonly struct VoxValue() : IEquatable<VoxValue>
@@ -33,7 +32,6 @@ public readonly struct VoxValue() : IEquatable<VoxValue>
     public static VoxValue Create(string text) => new() { Type = ValueType.String, String = text };
     public static VoxValue Create(bool boolean) => new() { Type = ValueType.Bool, Bool = boolean };
     public static VoxValue Create(Table table) => new() { Type = ValueType.Table, Reference = table };
-    public static VoxValue Create(Tuple tuple) => new() { Type = ValueType.Tuple, Reference = tuple };
     public static VoxValue Create(FunctionPrototype function) => new() { Type = ValueType.Function, Reference = function };
     public static VoxValue Create(Func<VoxValue[], VoxValue[]> function) => new() { Type = ValueType.Function, Reference = new NativeFunction(function) };
 
@@ -45,9 +43,8 @@ public readonly struct VoxValue() : IEquatable<VoxValue>
             ValueType.Null => "null",
             ValueType.Number => Number.ToString(),
             ValueType.Bool => Bool ? "true" : "false",
-            ValueType.Function => "func",
-            ValueType.Table => "table",
-            ValueType.Tuple => "tuple",
+            ValueType.Function => "[FUNCTION]",
+            ValueType.Table => "[TABLE]",
             _ => throw new ArgumentOutOfRangeException()
         };
     }

@@ -1,41 +1,77 @@
 ﻿using System;
 using System.Collections.Generic;
 using Antlr4.Runtime;
+using VoxScript.Exceptions;
 using VoxScript.Interop;
 using VoxScript.Runtime;
 using static VoxScriptParser;
 
 namespace VoxScript.Compiler;
 
+internal class CompilerScope
+{
+    public readonly CompilerScope? Parent;
+    public readonly List<CompilerScope> Children = [];
+    
+    public readonly List<string> Locals = [];
+    public readonly List<VoxValue> Constants = [];
+
+    public CompilerScope(CompilerScope? parent)
+    {
+        Parent = parent;
+        parent?.Children.Add(this);
+    }
+}
+
+internal class Closure(Closure[] parents, Instruction[] instructions, VoxValue[] constants, uint numLocals)
+{
+    public Closure[] Parents = parents;
+    
+    public Instruction[] Instructions = instructions;
+    public VoxValue[] Constants = constants;
+    public VoxValue[] Locals = new VoxValue[numLocals];
+}
+
 internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruction[]>
 {
-    private List<VoxValue> _constants = [];
-    private List<string> _localNames = [];
-    
-    private readonly ScriptGlobals _globals = globals;
+    private List<VoxValue> _constants => _currentScope.Constants;
+    private List<string> _localNames => _currentScope.Locals;
+
+    private CompilerScope _currentScope = null;
     
     public VxsProgram Build(ProgramContext treeRoot)
     {
         var blockCtx = treeRoot.block();
-        
-        VxsProgram program = new VxsProgram { _instructions = VisitBlock(blockCtx), _constants = _constants.ToArray() };
-        
-        _constants.Clear();
-        _localNames.Clear();
+
+        var result = VisitBlockSelf(blockCtx);
+        VxsProgram program = new VxsProgram { _instructions = result.Instructions, _constants = result.Scope.Constants.ToArray(), _localCount = (uint)result.Scope.Locals.Count };
         
         return program;
     }
 
-    public override Instruction[] VisitBlock(BlockContext context)
+    internal record BlockResult(Instruction[] Instructions, CompilerScope Scope);
+
+    public BlockResult VisitBlockSelf(BlockContext context, string[]? locals=null)
     {
+        _currentScope = new CompilerScope(_currentScope);
+        locals ??= [];
+        foreach (var localName in locals)
+        {
+            _getLocalSlot(localName); // Used to reserve local slots for functions
+        }
+        
         List<Instruction> instructions = [];
         
         foreach (var statementCtx in context.statement())
         {
             instructions.AddRange(Visit(statementCtx));
         }
+
+        var scope = _currentScope;
         
-        return instructions.ToArray();
+        _currentScope = _currentScope.Parent!;
+        
+        return new(instructions.ToArray(), scope);
     }
 
     private bool _hasGlobal(string globalName) => globals._hasGlobal(globalName);
@@ -48,6 +84,39 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         }
         _localNames.Add(localName);
         return (uint)_localNames.Count - 1;
+    }
+
+    private Instruction[] _getFetchForVariable(string name)
+    {
+        uint depth = 0;
+        var scope = _currentScope;
+        while (true)
+        {
+            if (scope.Locals.Contains(name)) break;
+            if (scope.Parent == null)
+            {
+                // Must be trying to access global
+                if (!_hasGlobal(name)) throw new GlobalNotFoundException($"No global or local found for '{name}'");
+                
+                var constantSlot = _getConstantSlot(VoxValue.Create(name));
+                return [
+                    new(OpCode.Load_Constant, constantSlot),
+                    new(OpCode.Load_Global)
+                ];
+            }
+
+            scope = scope.Parent;
+            depth++;
+        }
+        
+        var slot = (uint)scope.Locals.IndexOf(name);
+
+        if (depth > 0)
+        {
+            return [new(OpCode.Load_Scoped, depth, slot)];
+        }
+
+        return [new(OpCode.Load_Local, slot)];
     }
 
     private uint _getConstantSlot(VoxValue constant)
@@ -167,8 +236,64 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         {
             return VisitTable_definition(table);
         }
+
+        if (_isNull(ctx.lambda(), out var lambda))
+        {
+            return VisitLambda(lambda);
+        }
         
         throw new Exception("Failed to compile expression!");
+    }
+
+    public override Instruction[] VisitFunc_define(Func_defineContext context)
+    {
+        var init = context.ID().GetText();
+        
+        List<Instruction> fetchInstructions = [];
+
+        uint paramCount = 0;
+        List<string> paramNames = [];
+        var paramsCtx = context.function_params();
+        foreach (var instCtx in paramsCtx.var_inst())
+        {
+            paramCount++;
+            paramNames.Add(instCtx.ID().GetText());
+        }
+
+        var result = VisitBlockSelf(context.block(), paramNames.ToArray());
+
+        FunctionPrototype func = new FunctionPrototype(result.Instructions, result.Scope.Constants.ToArray(), paramCount, (uint)result.Scope.Locals.Count);
+        
+        var constantSlot = _getConstantSlot(VoxValue.Create(func));
+        fetchInstructions.Add(new(OpCode.Load_Constant, constantSlot));
+        
+        var localSlot = _getLocalSlot(init);
+        fetchInstructions.Add(new(OpCode.Store_Local, localSlot));
+        
+        return fetchInstructions.ToArray();
+    }
+
+    public override Instruction[] VisitLambda(LambdaContext context)
+    {
+        List<Instruction> fetchInstructions = [];
+
+        uint paramCount = 0;
+        List<string> paramNames = [];
+        var paramsCtx = context.function_params();
+        foreach (var instCtx in paramsCtx.var_inst())
+        {
+            paramCount++;
+            paramNames.Add(instCtx.ID().GetText());
+        }
+
+        var result = VisitBlockSelf(context.block(), paramNames.ToArray());
+
+        FunctionPrototype func = new FunctionPrototype(result.Instructions, result.Scope.Constants.ToArray(), paramCount, (uint)result.Scope.Locals.Count);
+        
+        var constantSlot = _getConstantSlot(VoxValue.Create(func));
+        fetchInstructions.Add(new(OpCode.Load_Constant, constantSlot));
+        
+        return fetchInstructions.ToArray();
     }
 
     public override Instruction[] VisitTable_definition(Table_definitionContext context)
@@ -219,7 +344,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         fetchInstructions.AddRange(VisitIdentifier(context.identifier()));
             
         uint paramCount = 0;
-        foreach (var expr in context.function_postfix().expression())
+        foreach (var expr in context.function_postfix().expression().Reverse())
         {
             paramCount++;
             fetchInstructions.AddRange(VisitExpression(expr));
@@ -236,16 +361,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         
         var init = context.ID().GetText();
 
-        if (_hasGlobal(init))
-        {
-            fetchInstructions.Add(new(OpCode.Load_Constant, _getConstantSlot(VoxValue.Create(init))));
-            fetchInstructions.Add(new(OpCode.Load_Global));
-        }
-        else
-        {
-            var localSlot = _getLocalSlot(init);
-            fetchInstructions.Add(new(OpCode.Load_Local, localSlot));
-        }
+        fetchInstructions.AddRange(_getFetchForVariable(init));
 
         foreach (var postfixCtx in context.postfix())
         {
@@ -277,14 +393,18 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
 
     public override Instruction[] VisitVar_define(Var_defineContext context)
     {
-        var inst = context.var_inst();
-        var localSlot = _getLocalSlot(inst.ID().GetText());
-
-        var exprInst = VisitExpression(context.expression());
-
         List<Instruction> all = [];
+        
+        var exprInst = VisitExpression(context.expression());
         all.AddRange(exprInst);
-        all.Add(new(OpCode.Store_Local, localSlot));
+        
+        var instances = context.var_inst();
+        foreach (var inst in instances)
+        {
+            var localSlot = _getLocalSlot(inst.ID().GetText());
+            
+            all.Add(new(OpCode.Store_Local, localSlot));
+        }
         
         return all.ToArray();
     }
@@ -298,5 +418,19 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         all.Add(new(OpCode.Print));
         
         return all.ToArray();
+    }
+
+    public override Instruction[] VisitCont_return(Cont_returnContext context)
+    {
+        List<Instruction> fetchInstructions = [];
+
+        foreach (var expr in context.expression())
+        {
+            fetchInstructions.AddRange(VisitExpression(expr));
+        }
+        
+        fetchInstructions.Add(new(OpCode.Return));
+        
+        return fetchInstructions.ToArray();
     }
 }

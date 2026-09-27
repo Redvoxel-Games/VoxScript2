@@ -11,7 +11,17 @@ class Program
     {
         var source =
             """
-            print "Hello, World!"
+            var a = "Hello, "
+            
+            func doSmth(b) {
+                print a + b
+                
+                return 3.14159, 4
+            }
+            
+            var x = doSmth("World!")
+            
+            print x
             """;
 
         var globals = new ScriptGlobals();
@@ -44,6 +54,6 @@ class Program
         Console.WriteLine("\nRunning program:\n");
         
         var runtime = new VxsRuntime(globals);
-        runtime.Run(program);
+        runtime.RunProgram(program);
     }
 }

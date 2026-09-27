@@ -23,7 +23,7 @@ statement
     
 print: 'print' expression;
 
-var_define: VAR var_inst '=' expression;
+var_define: VAR var_inst (',' var_inst)* '=' expression;
 val_assign: identifier '=' expression;
 arith_assign: identifier ASSIGNMENT expression;
 val_increment: identifier (INCREMENT | DECREMENT);
@@ -35,7 +35,7 @@ cont_while: 'while' LEFT_PAREN expression RIGHT_PAREN LEFT_CURLY block RIGHT_CUR
 cont_for: 'for' LEFT_PAREN ID ('=' expression)? ',' expression (',' expression)? RIGHT_PAREN LEFT_CURLY block RIGHT_CURLY;
 cont_foreach: 'foreach' LEFT_PAREN var_inst ',' var_inst 'in' expression RIGHT_PAREN LEFT_CURLY block RIGHT_CURLY;
 
-cont_return: 'return' expression?;
+cont_return: 'return' (expression (',' expression)*)?;
 cont_continue: 'continue';
 cont_break: 'break';
 

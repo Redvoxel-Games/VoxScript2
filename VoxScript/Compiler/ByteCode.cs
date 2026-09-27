@@ -10,7 +10,10 @@ public enum OpCode : uint
     Load_Local = 003,
     Store_Local = 004,
     Load_Global = 005,
-    Dump = 006,
+    
+    Load_Scoped = 006,
+    
+    Dump = 099,
     
     // Operations
     Add = 101,
@@ -33,9 +36,10 @@ public enum OpCode : uint
     
     // Control
     Jump_If = 201,
-    Loop = 202,
-    Restart = 203,
-    Break = 204,
+    Jump_If_Not = 202,
+    Loop = 203,
+    Restart = 204,
+    Break = 205,
     
     // Table
     Get_Value = 301,
@@ -52,10 +56,11 @@ public enum OpCode : uint
     Print = 901,
 }
 
-public readonly struct Instruction(OpCode opcode, uint? operand=null)
+public readonly struct Instruction(OpCode opcode, uint? operand=null, uint? secondary=null)
 {
     public readonly OpCode OpCode = opcode;
     public readonly uint Operand = operand ?? 0;
+    public readonly uint? Secondary = secondary ?? 0;
     public readonly bool hasOperand = operand != null;
 }
 
@@ -63,4 +68,5 @@ public sealed class VxsProgram
 {
     public Instruction[] _instructions;
     public VoxValue[] _constants;
+    public uint _localCount;
 }

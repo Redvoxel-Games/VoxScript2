@@ -22,6 +22,6 @@ public static class Sample
         
         // Run the compiled code
         var runtime = new VxsRuntime(globals);
-        runtime.Run(program);
+        runtime.RunProgram(program);
     }
 }

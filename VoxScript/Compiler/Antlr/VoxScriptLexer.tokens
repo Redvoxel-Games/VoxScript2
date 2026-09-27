@@ -59,8 +59,8 @@ COND_LESSOREQUAL=58
 COND_AND=59
 COND_OR=60
 'print'=1
-'='=2
-','=3
+','=2
+'='=3
 'return'=4
 '^'=5
 '?'=6

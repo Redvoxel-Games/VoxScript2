@@ -6,32 +6,13 @@ namespace VoxScript.Runtime;
 
 public class VxsRuntime(ScriptGlobals globals)
 {
-    internal Instruction[] _instructions;
     internal VoxValue[] _stack = new VoxValue[1024];
-    internal VoxValue[] _constants = new VoxValue[1024];
-    internal VoxValue[] _locals = new VoxValue[1024];
 
     public readonly ScriptGlobals Globals = globals;
     
     internal Closure _currentClosure;
 
     internal uint _stackIndex = 0;
-    internal uint _instructionIndex = 0;
-
-    public void SetConstant(uint slot, VoxValue value)
-    {
-        _constants[slot] = value;
-    }
-
-    public void SetLocal(uint slot, VoxValue value)
-    {
-        _locals[slot] = value;
-    }
-
-    public VoxValue GetLocal(uint slot)
-    {
-        return _locals[slot];
-    }
 
     private void PushStack(VoxValue value)
     {
@@ -44,18 +25,29 @@ public class VxsRuntime(ScriptGlobals globals)
         return val;
     }
 
-    private void RunClosure(Closure closure)
+    public VoxValue[] RunProgram(VxsProgram program)
     {
-        _instructions = closure.Instructions;
-        _constants = closure.Constants;
-        _locals = closure.Locals;
-        _instructionIndex = closure.InstructionIndex;
-        
-        while (_instructionIndex < _instructions.Length)
+        Closure newClosure = new Closure([], program._instructions, program._constants, program._localCount);
+        return Run(newClosure, []);
+    }
+
+    internal VoxValue[] Run(Closure closure, VoxValue[] inputs)
+    {
+        Instruction[] instructions = closure.Instructions;
+        uint instructionIndex = 0;
+        VoxValue[] constants = closure.Constants;
+
+        for (var i = 0; i < inputs.Length; i++)
         {
-            var instruction = _instructions[_instructionIndex++];
+            closure.Locals[i] = inputs[i];
+        }
+        
+        while (instructionIndex < instructions.Length)
+        {
+            var instruction = instructions[instructionIndex++];
             var opCode = instruction.OpCode;
             var operand = instruction.Operand;
+            var secondary = instruction.Secondary;
 
             VoxValue a;
             VoxValue b;
@@ -65,40 +57,114 @@ public class VxsRuntime(ScriptGlobals globals)
             VoxValue table;
             
             Table? tableRef;
-            
+
+            bool evaluatesToTrue;
+            VoxValue val;
             switch (opCode)
             {
                 case OpCode.Jump_If:
                     value = PopStack();
                     
-                    var evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || value.Type != ValueType.Null;
+                    evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || value.Type != ValueType.Null;
 
                     if (evaluatesToTrue)
                     {
-                        _instructionIndex = operand;
+                        instructionIndex = operand;
+                    }
+                    
+                    break;
+                
+                case OpCode.Jump_If_Not:
+                    value = PopStack();
+                    
+                    evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || value.Type != ValueType.Null;
+
+                    if (!evaluatesToTrue)
+                    {
+                        instructionIndex = operand;
                     }
                     
                     break;
                 
                 case OpCode.Load_Constant:
-                    PushStack(_constants[operand]);
+                    PushStack(constants[operand]);
                     break;
                 
                 case OpCode.Load_Local:
-                    PushStack(_locals[operand]);
+                    PushStack(closure.Locals[operand]);
                     break;
                 
                 case OpCode.Store_Local:
-                    _locals[operand] = PopStack();
+                    closure.Locals[operand] = PopStack();
                     break;
                 
                 case OpCode.Load_Global:
                     var globalKey = PopStack().ToString();
 
-                    var val = Globals.GetGlobal(globalKey);
+                    val = Globals.GetGlobal(globalKey);
                     
                     PushStack(val);
                     
+                    break;
+                
+                case OpCode.Load_Scoped:
+                    var backtracked = closure.Parents[closure.Parents.Length-operand];
+
+                    val = backtracked.Locals[(int)secondary!];
+                    
+                    PushStack(val);
+
+                    break;
+                
+                case OpCode.Call:
+                    VoxValue[] args = new VoxValue[operand];
+                    for (var i = 0; i < operand; i++)
+                    {
+                        args[i] = PopStack();
+                    }
+
+                    var func = PopStack();
+
+                    if (func.Type != ValueType.Function)
+                        throw new Exception($"Attempt to call {func.Type} as function!");
+
+                    switch (func.Reference)
+                    {
+                        case NativeFunction native:
+                        {
+                            var returned = native.Invoke(args);
+                            foreach (var v in returned)
+                            {
+                                PushStack(v);
+                            }
+
+                            break;
+                        }
+                        case FunctionPrototype proto:
+                        {
+                            Closure[] parents = new Closure[closure.Parents.Length + 1];
+
+                            for (var i=0; i<closure.Parents.Length; i++)
+                            {
+                                parents[i] = closure.Parents[i];
+                            }
+
+                            parents[^1] = closure;
+                        
+                            Closure newClosure = new Closure(parents, proto.Instructions, proto.Constants, proto.LocalCount);
+                        
+                            var returned = Run(newClosure, args);
+                            foreach (var v in returned)
+                            {
+                                PushStack(v);
+                            }
+
+                            break;
+                        }
+                        default:
+                            throw new Exception("Failed to call function!");
+                    }
+
                     break;
                 
                 case OpCode.Pop:
@@ -224,21 +290,23 @@ public class VxsRuntime(ScriptGlobals globals)
                     
                     break;
                 
+                case OpCode.Return:
+                    // Dump entire stack as return values
+                    uint returnSize = _stackIndex;
+                    VoxValue[] toReturn = new VoxValue[returnSize];
+                    for (var i = 0; i < returnSize; i++)
+                    {
+                        var v = PopStack();
+                        toReturn[i] = v;
+                    }
+
+                    return toReturn;
+                
                 default:
                     throw new NotImplementedException();
             }
         }
-    }
 
-    public void Run(VxsProgram program)
-    {
-        _currentClosure = new Closure()
-        {
-            Instructions = program._instructions,
-            Constants = program._constants,
-            Locals = new VoxValue[1024],
-        };
-        
-        RunClosure(_currentClosure);
+        return [VoxValue.Null];
     }
 }
