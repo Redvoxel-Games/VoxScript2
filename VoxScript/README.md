@@ -1,0 +1,46 @@
+﻿# VoxScript
+Easily embeddable scripting language for C#.
+<hr>
+
+## Core features:
+* Easy to set up
+* Easily embeddable
+* Very fast (unproven)
+
+<hr>
+
+## Easy to set up
+
+First of all, Install the package via NuGet:
+`dotnet --install VoxScript2`
+
+And then running a script is as easy as:
+```csharp
+// Source code written in VoxScript
+var source = """
+    print "Hello, World!"
+""";
+
+// Object for containing global values
+var globals = new ScriptGlobals();
+
+// Compile source code into bytecode instructions
+var program = VxsCompiler.CompileScript(source, globals);
+
+// Run the compiled code
+var runtime = new VxsRuntime(globals);
+runtime.Run(program);
+```
+
+### Value type
+VoxScript uses a unified value struct. This struct can contain a string, number, boolean, etc.
+
+To create a value, use `VoxValue.Create()`, and put in a valid object.
+
+### Globals
+To create a global value, use `ScriptGlobals.SetGlobal()`:
+```csharp
+var globals = new ScriptGlobals();
+
+globals.SetGlobal("PI", VoxValue.Create(3.14159));
+```
