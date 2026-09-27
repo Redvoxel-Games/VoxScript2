@@ -2,6 +2,8 @@
 
 Easily embeddable scripting language for C#.
 
+Directly inspired by [Lua](https://www.lua.org/).
+
 ## Core features
 
 * Easy to set up
@@ -37,6 +39,15 @@ runtime.RunProgram(program);
 VoxScript uses a unified value struct. This struct can contain a string, number, boolean, etc.
 
 To create a value, use `VoxValue.Create()`, and put in a valid object.
+
+Valid types:
+
+* `double`
+* `string`
+* `bool`
+* `Func<VoxValue[], VoxValue[]>`
+* `FunctionPrototype`
+* `Table`
 
 ### Globals
 
