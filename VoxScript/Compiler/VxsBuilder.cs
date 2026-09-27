@@ -5,6 +5,7 @@ using VoxScript.Exceptions;
 using VoxScript.Interop;
 using VoxScript.Runtime;
 using static VoxScriptParser;
+using ValueType = VoxScript.Runtime.ValueType;
 
 namespace VoxScript.Compiler;
 
@@ -23,13 +24,31 @@ internal class CompilerScope
     }
 }
 
-internal class Closure(Closure[] parents, Instruction[] instructions, VoxValue[] constants, uint numLocals)
+internal abstract class Closure(Closure[] parents, VoxValue[] constants, uint numLocals)
 {
     public Closure[] Parents = parents;
     
-    public Instruction[] Instructions = instructions;
     public VoxValue[] Constants = constants;
     public VoxValue[] Locals = new VoxValue[numLocals];
+}
+
+internal class FunctionClosure(Closure[] parents, Instruction[] instructions, VoxValue[] constants, uint numLocals) : Closure(parents, constants, numLocals)
+{
+    public Instruction[] Instructions = instructions;
+}
+
+internal class BlockClosure(Closure[] parents, VoxValue[] constants, uint numLocals)
+    : Closure(parents, constants, numLocals);
+
+internal class IfClosureStore
+{
+    public VoxValue[] Constants;
+    public uint LocalCount;
+    public IfClosureStore(VoxValue[] constants, uint numLocals)
+    {
+        Constants = constants;
+        LocalCount = numLocals;
+    }
 }
 
 internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruction[]>
@@ -129,7 +148,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         return (uint)_constants.Count - 1;
     }
 
-    private static bool _isNull<T>(T? obj, out T value)
+    private static bool _notNull<T>(T? obj, out T value)
     {
         if (obj == null)
         {
@@ -143,21 +162,21 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
 
     public override Instruction[] VisitExpression(ExpressionContext ctx)
     {
-        if (_isNull(ctx.NUMBER(), out var num))
+        if (_notNull(ctx.NUMBER(), out var num))
         {
             var dbl = double.Parse(num.GetText());
             var constantSlot = _getConstantSlot(VoxValue.Create(dbl));
             
             return [new(OpCode.Load_Constant, constantSlot)];
         }
-        if (_isNull(ctx.STRING(), out var str))
+        if (_notNull(ctx.STRING(), out var str))
         {
             var text = str.GetText().Trim('"');
             var constantSlot = _getConstantSlot(VoxValue.Create(text));
             
             return [new(OpCode.Load_Constant, constantSlot)];
         }
-        if (_isNull(ctx.BOOLEAN(), out var b))
+        if (_notNull(ctx.BOOLEAN(), out var b))
         {
             var isTrue = b.GetText() == "true";
             var constantSlot = _getConstantSlot(VoxValue.Create(isTrue));
@@ -170,7 +189,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
             return [new(OpCode.Load_Constant, slot)];
         }
 
-        if (_isNull(ctx.left, out var leftExpr))
+        if (_notNull(ctx.left, out var leftExpr))
         {
             var right = ctx.right!;
             
@@ -206,7 +225,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
             return fetchInstructions.ToArray();
         }
 
-        if (_isNull(ctx.unary, out var unary))
+        if (_notNull(ctx.unary, out var unary))
         {
             var opInst = VisitExpression(ctx.expr);
             
@@ -217,27 +236,27 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
             return fetchInstructions.ToArray();
         }
 
-        if (_isNull(ctx.paren, out var paren))
+        if (_notNull(ctx.paren, out var paren))
         {
             return VisitExpression(paren);
         }
 
-        if (_isNull(ctx.identifier(), out var identifier))
+        if (_notNull(ctx.identifier(), out var identifier))
         {
             return VisitIdentifier(identifier);
         }
 
-        if (_isNull(ctx.func_call(), out var callCtx))
+        if (_notNull(ctx.func_call(), out var callCtx))
         {
             return VisitFunc_call(callCtx);
         }
 
-        if (_isNull(ctx.table_definition(), out var table))
+        if (_notNull(ctx.table_definition(), out var table))
         {
             return VisitTable_definition(table);
         }
 
-        if (_isNull(ctx.lambda(), out var lambda))
+        if (_notNull(ctx.lambda(), out var lambda))
         {
             return VisitLambda(lambda);
         }
@@ -266,6 +285,8 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         
         var constantSlot = _getConstantSlot(VoxValue.Create(func));
         fetchInstructions.Add(new(OpCode.Load_Constant, constantSlot));
+        
+        fetchInstructions.Add(new(OpCode.Mark_Ownership));
         
         var localSlot = _getLocalSlot(init);
         fetchInstructions.Add(new(OpCode.Store_Local, localSlot));
@@ -301,7 +322,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         List<Instruction> fetchInstructions = [];
         fetchInstructions.Add(new(OpCode.Create_Table));
 
-        if (_isNull(context.table_member_list(), out var list))
+        if (_notNull(context.table_member_list(), out var list))
         {
             var expressions = list.expression();
 
@@ -365,15 +386,15 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
 
         foreach (var postfixCtx in context.postfix())
         {
-            if (_isNull(postfixCtx.id_postfix(), out var id_pf))
+            if (_notNull(postfixCtx.id_postfix(), out var id_pf))
             {
                 fetchInstructions.Add(new(OpCode.Load_Constant, _getConstantSlot(VoxValue.Create(id_pf.ID().GetText()))));
             }
-            else if (_isNull(postfixCtx.expression_postfix(), out var expr_pf))
+            else if (_notNull(postfixCtx.expression_postfix(), out var expr_pf))
             {
                 fetchInstructions.AddRange(VisitExpression(expr_pf.expression()));
             }
-            else if (_isNull(postfixCtx.function_postfix(), out var func_pf))
+            else if (_notNull(postfixCtx.function_postfix(), out var func_pf))
             {
                 uint paramCount = 0;
                 foreach (var expr in func_pf.expression())
@@ -432,5 +453,74 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         fetchInstructions.Add(new(OpCode.Return));
         
         return fetchInstructions.ToArray();
+    }
+
+    public override Instruction[] VisitCont_if(Cont_ifContext context)
+    {
+        List<Instruction> all = [];
+        var expr = context.expression();
+        
+        all.AddRange(VisitExpression(expr));
+
+        Instruction[] blockInstructions;
+        if (_notNull(context.statement(), out var statement))
+        {
+            blockInstructions = VisitStatement(statement);
+            
+            all.Add(new(OpCode.Jump_If_Not, (uint)blockInstructions.Length));
+            all.AddRange(blockInstructions);
+        }
+        else
+        {
+            var result = VisitBlockSelf(context.block());
+            blockInstructions = result.Instructions;
+            
+            all.Add(new(OpCode.Jump_If_Not, (uint)blockInstructions.Length+3));
+
+            var constantSlot = _getConstantSlot(new VoxValue
+            {
+                Type = ValueType.Misc,
+                Reference = new IfClosureStore(result.Scope.Constants.ToArray(), (uint)result.Scope.Locals.Count)
+            });
+            
+            all.Add(new(OpCode.Load_Constant, constantSlot));
+        
+            all.Add(new(OpCode.Make_Closure));
+            all.AddRange(blockInstructions);
+            all.Add(new(OpCode.Break_Closure));
+        }
+
+        if (_notNull(context.cont_else(), out var elseCtx))
+        {
+            all.AddRange(VisitExpression(expr));
+            
+            Instruction[] elseBlockInstructions;
+            if (_notNull(elseCtx.statement(), out var elseStatement))
+            {
+                elseBlockInstructions = VisitStatement(elseStatement);
+                all.Add(new(OpCode.Jump_If, (uint)elseBlockInstructions.Length));
+                all.AddRange(elseBlockInstructions);
+            }
+            else
+            {
+                var result = VisitBlockSelf(elseCtx.block());
+                elseBlockInstructions = result.Instructions;
+
+                var constantSlot = _getConstantSlot(new VoxValue
+                {
+                    Type = ValueType.Misc,
+                    Reference = new IfClosureStore(result.Scope.Constants.ToArray(), (uint)result.Scope.Locals.Count)
+                });
+            
+                all.Add(new(OpCode.Jump_If, (uint)elseBlockInstructions.Length+3));
+                all.Add(new(OpCode.Load_Constant, constantSlot));
+        
+                all.Add(new(OpCode.Make_Closure));
+                all.AddRange(elseBlockInstructions);
+                all.Add(new(OpCode.Break_Closure));
+            }
+        }
+        
+        return all.ToArray();
     }
 }

@@ -14,6 +14,11 @@ public enum ValueType
     
     Function,
     Table,
+    
+    /// <summary>
+    /// Used for internal closure management, do not use.
+    /// </summary>
+    Misc,
 }
 
 public readonly struct VoxValue() : IEquatable<VoxValue>
@@ -45,6 +50,7 @@ public readonly struct VoxValue() : IEquatable<VoxValue>
             ValueType.Bool => Bool ? "true" : "false",
             ValueType.Function => "[FUNCTION]",
             ValueType.Table => "[TABLE]",
+            ValueType.Misc => "[MISC]",
             _ => throw new ArgumentOutOfRangeException()
         };
     }
@@ -65,7 +71,8 @@ public readonly struct VoxValue() : IEquatable<VoxValue>
             ValueType.Number => Math.Abs(Number - other.Number) < 0.00000001,
             ValueType.Bool => Bool == other.Bool,
             ValueType.Function or ValueType.Table => ReferenceEquals(Reference, other.Reference),
-            _ => throw new ArgumentOutOfRangeException()
+            ValueType.Misc => ReferenceEquals(Reference, other.Reference),
+            _ => throw new ArgumentOutOfRangeException(Type.ToString())
         };
     }
 

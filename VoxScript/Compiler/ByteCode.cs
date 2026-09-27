@@ -40,6 +40,8 @@ public enum OpCode : uint
     Loop = 203,
     Restart = 204,
     Break = 205,
+    Make_Closure = 206,
+    Break_Closure = 207,
     
     // Table
     Get_Value = 301,
@@ -51,6 +53,7 @@ public enum OpCode : uint
     // Functions
     Call = 401,
     Return = 402,
+    Mark_Ownership = 403,
     
     // Misc
     Print = 901,

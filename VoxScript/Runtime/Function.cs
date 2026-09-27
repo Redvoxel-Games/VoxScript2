@@ -4,6 +4,7 @@ namespace VoxScript.Runtime;
 
 public sealed class FunctionPrototype(Instruction[] instructions, VoxValue[] constants, uint parameterCount, uint localCount)
 {
+    internal Closure _parentClosure;
     public readonly Instruction[] Instructions = instructions;
     public readonly VoxValue[] Constants = constants;
     public readonly uint ParameterCount = parameterCount;

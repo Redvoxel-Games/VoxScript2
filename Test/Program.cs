@@ -19,9 +19,20 @@ class Program
                 return 3.14159, 4
             }
             
-            var x = doSmth("World!")
+            var x, y = doSmth("World!")
             
-            print x
+            print x + y
+            
+            var num = 5
+            if (num > 5) {
+                print "up"
+            }
+            else if (num < 5) {
+                print "down"
+            }
+            else {
+                print "middle"
+            }
             """;
 
         var globals = new ScriptGlobals();

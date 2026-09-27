@@ -9,8 +9,6 @@ public class VxsRuntime(ScriptGlobals globals)
     internal VoxValue[] _stack = new VoxValue[1024];
 
     public readonly ScriptGlobals Globals = globals;
-    
-    internal Closure _currentClosure;
 
     internal uint _stackIndex = 0;
 
@@ -27,19 +25,34 @@ public class VxsRuntime(ScriptGlobals globals)
 
     public VoxValue[] RunProgram(VxsProgram program)
     {
-        Closure newClosure = new Closure([], program._instructions, program._constants, program._localCount);
+        var newClosure = new FunctionClosure([], program._instructions, program._constants, program._localCount);
         return Run(newClosure, []);
     }
 
     internal VoxValue[] Run(Closure closure, VoxValue[] inputs)
     {
-        Instruction[] instructions = closure.Instructions;
+        Instruction[] instructions = (closure as FunctionClosure)!.Instructions;
         uint instructionIndex = 0;
         VoxValue[] constants = closure.Constants;
 
         for (var i = 0; i < inputs.Length; i++)
         {
             closure.Locals[i] = inputs[i];
+        }
+
+        void makeClosure(BlockClosure c)
+        {
+            constants = c.Constants;
+
+            closure = c;
+        }
+        void breakClosure()
+        {
+            var previous = closure.Parents[^1];
+
+            constants = previous.Constants;
+
+            closure = previous;
         }
         
         while (instructionIndex < instructions.Length)
@@ -60,16 +73,21 @@ public class VxsRuntime(ScriptGlobals globals)
 
             bool evaluatesToTrue;
             VoxValue val;
+            Closure[] parents;
+            Closure newClosure;
+            
+            // Console.WriteLine($"{instructionIndex}: {opCode} {operand}");
+            
             switch (opCode)
             {
                 case OpCode.Jump_If:
                     value = PopStack();
                     
-                    evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || value.Type != ValueType.Null;
+                    evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || (value.Type != ValueType.Null && value.Type != ValueType.Bool);
 
                     if (evaluatesToTrue)
                     {
-                        instructionIndex = operand;
+                        instructionIndex += operand;
                     }
                     
                     break;
@@ -77,11 +95,11 @@ public class VxsRuntime(ScriptGlobals globals)
                 case OpCode.Jump_If_Not:
                     value = PopStack();
                     
-                    evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || value.Type != ValueType.Null;
-
+                    evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || (value.Type != ValueType.Null && value.Type != ValueType.Bool);
+                    
                     if (!evaluatesToTrue)
                     {
-                        instructionIndex = operand;
+                        instructionIndex += operand;
                     }
                     
                     break;
@@ -116,6 +134,21 @@ public class VxsRuntime(ScriptGlobals globals)
 
                     break;
                 
+                case OpCode.Mark_Ownership:
+                    val = PopStack();
+                    
+                    if (val.Type != ValueType.Function) throw new Exception($"Attempt to mark non-function value's owner!");
+
+                    var funcRef = val.Reference;
+                    
+                    if (funcRef is not FunctionPrototype funcProto)  throw new Exception($"Attempt to mark native function's owner!");
+                    
+                    funcProto._parentClosure = closure;
+                    
+                    PushStack(val);
+                    
+                    break;
+                
                 case OpCode.Call:
                     VoxValue[] args = new VoxValue[operand];
                     for (var i = 0; i < operand; i++)
@@ -142,18 +175,19 @@ public class VxsRuntime(ScriptGlobals globals)
                         }
                         case FunctionPrototype proto:
                         {
-                            Closure[] parents = new Closure[closure.Parents.Length + 1];
+                            var functionClosure = proto._parentClosure;
+                            parents = new Closure[functionClosure.Parents.Length + 1];
 
-                            for (var i=0; i<closure.Parents.Length; i++)
+                            for (var i=0; i<functionClosure.Parents.Length; i++)
                             {
-                                parents[i] = closure.Parents[i];
+                                parents[i] = functionClosure.Parents[i];
                             }
 
-                            parents[^1] = closure;
+                            parents[^1] = functionClosure;
                         
-                            Closure newClosure = new Closure(parents, proto.Instructions, proto.Constants, proto.LocalCount);
+                            newClosure = new FunctionClosure(parents, proto.Instructions, proto.Constants, proto.LocalCount);
                         
-                            var returned = Run(newClosure, args);
+                            var returned = Run((newClosure as FunctionClosure)!, args);
                             foreach (var v in returned)
                             {
                                 PushStack(v);
@@ -165,6 +199,32 @@ public class VxsRuntime(ScriptGlobals globals)
                             throw new Exception("Failed to call function!");
                     }
 
+                    break;
+                
+                case OpCode.Make_Closure:
+                    parents = new Closure[closure.Parents.Length + 1];
+
+                    for (var i=0; i<closure.Parents.Length; i++)
+                    {
+                        parents[i] = closure.Parents[i];
+                    }
+
+                    parents[^1] = closure;
+
+                    var ifDefVal = PopStack();
+
+                    if (ifDefVal.Type != ValueType.Misc) throw new Exception();
+
+                    var ifDef = (ifDefVal.Reference as IfClosureStore)!;
+                        
+                    newClosure = new BlockClosure(parents, ifDef.Constants, ifDef.LocalCount);
+                    
+                    makeClosure((newClosure as BlockClosure)!);
+                    
+                    break;
+                
+                case OpCode.Break_Closure:
+                    breakClosure();
                     break;
                 
                 case OpCode.Pop:
@@ -272,9 +332,9 @@ public class VxsRuntime(ScriptGlobals globals)
                     a = PopStack();
                     b = PopStack();
                     
-                    if (a.Type != ValueType.Number || b.Type != ValueType.Number) throw new Exception($"Attempt to do modulus operation with {a.Type} and {b.Type}");
+                    if (a.Type != ValueType.Number || b.Type != ValueType.Number) throw new Exception($"Attempt to do modulus operation with {b.Type} and {a.Type}");
 
-                    c = VoxValue.Create(a.Number % b.Number);
+                    c = VoxValue.Create(b.Number % a.Number);
                     PushStack(c);
                     break;
                 
@@ -284,10 +344,58 @@ public class VxsRuntime(ScriptGlobals globals)
 
                     if (a.Type == ValueType.Number && b.Type == ValueType.Number)
                     {
-                        PushStack(VoxValue.Create(Math.Pow(a.Number, b.Number)));
+                        PushStack(VoxValue.Create(Math.Pow(b.Number, a.Number)));
                     }
-                    else throw new ArithmeticException($"Attempt to do power operation on {a.Type} and {b.Type}!");
+                    else throw new ArithmeticException($"Attempt to do power operation on {b.Type} and {a.Type}!");
                     
+                    break;
+                
+                case OpCode.Less:
+                    a = PopStack();
+                    b = PopStack();
+                    
+                    if (a.Type == ValueType.Number && b.Type == ValueType.Number)
+                    {
+                        PushStack(VoxValue.Create(b.Number < a.Number));
+                    }
+                    else throw new ArithmeticException($"Attempt to do comparison operation on {b.Type} and {a.Type}!");
+
+                    break;
+                
+                case OpCode.LessOrEquals:
+                    a = PopStack();
+                    b = PopStack();
+                    
+                    if (a.Type == ValueType.Number && b.Type == ValueType.Number)
+                    {
+                        PushStack(VoxValue.Create(b.Number <= a.Number));
+                    }
+                    else throw new ArithmeticException($"Attempt to do comparison operation on {b.Type} and {a.Type}!");
+
+                    break;
+                
+                case OpCode.Greater:
+                    a = PopStack();
+                    b = PopStack();
+                    
+                    if (a.Type == ValueType.Number && b.Type == ValueType.Number)
+                    {
+                        PushStack(VoxValue.Create(b.Number > a.Number));
+                    }
+                    else throw new ArithmeticException($"Attempt to do comparison operation on {b.Type} and {a.Type}!");
+
+                    break;
+                
+                case OpCode.GreaterOrEquals:
+                    a = PopStack();
+                    b = PopStack();
+                    
+                    if (a.Type == ValueType.Number && b.Type == ValueType.Number)
+                    {
+                        PushStack(VoxValue.Create(b.Number >= a.Number));
+                    }
+                    else throw new ArithmeticException($"Attempt to do comparison operation on {b.Type} and {a.Type}!");
+
                     break;
                 
                 case OpCode.Return:
@@ -301,6 +409,24 @@ public class VxsRuntime(ScriptGlobals globals)
                     }
 
                     return toReturn;
+                
+                case OpCode.Invert:
+                    val = PopStack();
+                    
+                    switch (val.Type)
+                    {
+                        case ValueType.Number:
+                            PushStack(VoxValue.Create(-val.Number));
+                            break;
+                        case ValueType.Bool:
+                            PushStack(VoxValue.Create(!val.Bool));
+                            break;
+                        
+                        default:
+                            throw new ArithmeticException($"Attempt to invert {val.Type}!");
+                    }
+
+                    break;
                 
                 default:
                     throw new NotImplementedException();
