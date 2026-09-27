@@ -101,6 +101,30 @@ public class VxsRuntime(ScriptGlobals globals)
                     {
                         instructionIndex += operand;
                     }
+
+                    break;
+                
+                case OpCode.Back_If:
+                    value = PopStack();
+                    
+                    evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || (value.Type != ValueType.Null && value.Type != ValueType.Bool);
+
+                    if (evaluatesToTrue)
+                    {
+                        instructionIndex -= operand;
+                    }
+                    
+                    break;
+                
+                case OpCode.Back_If_Not:
+                    value = PopStack();
+                    
+                    evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || (value.Type != ValueType.Null && value.Type != ValueType.Bool);
+
+                    if (!evaluatesToTrue)
+                    {
+                        instructionIndex -= operand;
+                    }
                     
                     break;
                 

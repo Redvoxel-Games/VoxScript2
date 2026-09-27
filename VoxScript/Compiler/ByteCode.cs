@@ -37,11 +37,10 @@ public enum OpCode : uint
     // Control
     Jump_If = 201,
     Jump_If_Not = 202,
-    Loop = 203,
-    Restart = 204,
-    Break = 205,
-    Make_Closure = 206,
-    Break_Closure = 207,
+    Back_If = 203,
+    Back_If_Not = 204,
+    Make_Closure = 207,
+    Break_Closure = 208,
     
     // Table
     Get_Value = 301,

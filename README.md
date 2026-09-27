@@ -8,7 +8,15 @@ Directly inspired by [Lua](https://www.lua.org/).
 
 * Easy to set up
 * Easily embeddable
-* Very fast (unproven)
+* Fast (theoretically, no benchmarks have been performed yet)
+
+### INCOMPLETE
+
+Missing features in order of priority:
+
+1. for, foreach, while, break, continue
+2. UserData
+3. Coroutines/Threads
 
 ## Easy to set up
 
