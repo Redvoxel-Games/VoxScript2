@@ -480,5 +480,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Other
 *.etlx
 *.nettrace
+.antlr/
