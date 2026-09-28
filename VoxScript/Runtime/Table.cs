@@ -22,4 +22,16 @@ public sealed class Table
             _values[key] = value;
         }
     }
+
+    public uint Length => (uint)_values.Count;
+
+    public VoxValue GetKeyAt(uint index)
+    {
+        return _values.Keys.ToArray()[index];
+    }
+
+    public VoxValue GetValueAt(uint index)
+    {
+        return _values.Values.ToArray()[index];
+    }
 }

@@ -9,16 +9,18 @@ class Program
 {
     static void Main(string[] args)
     {
-        var thing = Console.ReadLine(); // Halt until input is given, to attach debugger
+        // var thing = Console.ReadLine(); // Halt until input is given, to attach debugger
 
         var source =
             """
-            var c = 0
-            for (i=0, 100000, 1) {
-                if (i%2 == 0) c++
-                else c--
-                
-                print c
+            var tbl = {
+                1="Item1",
+                2="Item2",
+                3="Hello, ",
+                john="World!",
+            }
+            foreach (k, v in tbl) {
+                print k + ": " + v;
             }
             """;
 

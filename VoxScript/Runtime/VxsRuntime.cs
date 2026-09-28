@@ -101,6 +101,7 @@ public class VxsRuntime(ScriptGlobals globals)
 
             Closure? backtracked;
             bool aIsTrue;
+            VoxValue index;
             switch (opCode)
             {
                 case OpCode.Jump_If:
@@ -326,6 +327,16 @@ public class VxsRuntime(ScriptGlobals globals)
                     
                     break;
                 
+                case OpCode.Table_Length:
+                    table = PopStack();
+
+                    if (table.Type != ValueType.Table) throw new Exception($"Attempt to index {table.Type}!");
+                    
+                    tableRef = table.Reference as Table;
+                    PushStack(VoxValue.Create(tableRef!.Length));
+                    
+                    break;
+                
                 case OpCode.Assemble_Index:
                     value = PopStack();
                     table = PopStack();
@@ -351,6 +362,30 @@ public class VxsRuntime(ScriptGlobals globals)
                 
                 case OpCode.Create_Table:
                     PushStack(VoxValue.Create(new Table()));
+                    break;
+                
+                case OpCode.Get_Key_At:
+                    index = PopStack();
+                    table = PopStack();
+                    
+                    if (table.Type != ValueType.Table) throw new Exception($"Attempt to index {table.Type} with '{index.ToString()}'");
+                    if (index.Type != ValueType.Number) throw new Exception($"Attempt to index table with {index.ToString()}");
+
+                    tableRef = table.Reference as Table;
+                    PushStack(tableRef!.GetKeyAt((uint)index.Number));
+                    
+                    break;
+                
+                case OpCode.Get_Value_At:
+                    index = PopStack();
+                    table = PopStack();
+                    
+                    if (table.Type != ValueType.Table) throw new Exception($"Attempt to index {table.Type} with '{index.ToString()}'");
+                    if (index.Type != ValueType.Number) throw new Exception($"Attempt to index table with {index.ToString()}");
+
+                    tableRef = table.Reference as Table;
+                    PushStack(tableRef!.GetValueAt((uint)index.Number));
+                    
                     break;
                 
                 case OpCode.Add:

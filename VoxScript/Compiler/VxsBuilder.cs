@@ -490,8 +490,9 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         var instances = context.var_inst();
         foreach (var inst in instances)
         {
-            var localSlot = _getLocalSlot(inst.ID().GetText());
+            if (inst.DISCARD() != null) continue;
             
+            var localSlot = _getLocalSlot(inst.ID().GetText());
             all.Add(new(OpCode.Store_Local, localSlot));
         }
         
@@ -750,15 +751,12 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         
         all.AddRange(repeatExpression);
         
-        all.AddRange([
-            // Create repeat count variable
-            new(OpCode.Store_Local, repeatSlot),
-        ]);
+        List<Instruction> insideBlockInstructions = [];
         
         // Put initial value on stack
-        all.AddRange(initialExpression);
+        insideBlockInstructions.AddRange(initialExpression);
         
-        all.AddRange([
+        insideBlockInstructions.AddRange([
             // Enter loop
             new(OpCode.Load_Constant, closureSlot),
             new(OpCode.Make_Closure),
@@ -767,22 +765,164 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
             new(OpCode.Store_Local, currentValSlot),
         ]);
 
+        uint blockStart = (uint)insideBlockInstructions.Count;
+        
+        // Execute main block
+        insideBlockInstructions.AddRange(blockInstructions);
+        
+        insideBlockInstructions.Add(new(OpCode.Loop_Check_Marker));
+        
+        // Offset stored value
+        insideBlockInstructions.AddRange([
+            new(OpCode.Load_Local, currentValSlot),
+        ]);
+        insideBlockInstructions.AddRange(offsetExpression);
+        insideBlockInstructions.AddRange([
+            new(OpCode.Add),
+            new(OpCode.Store_Local, currentValSlot)
+        ]);
+        
+        insideBlockInstructions.AddRange([
+            // Run check to see if we should loop back or not
+            new(OpCode.Load_Scoped, 1, countSlot),
+            new(OpCode.Increment),
+            new(OpCode.Store_Scoped, 1, countSlot),
+            new(OpCode.Load_Scoped, 1, countSlot),
+            new(OpCode.Load_Scoped, 1, repeatSlot),
+            new(OpCode.Less),
+        ]);
+        
+        uint size = (uint)insideBlockInstructions.Count - blockStart;
+
+        insideBlockInstructions.AddRange([
+            new(OpCode.Back_If, size+1),
+            
+            new(OpCode.Loop_Exit_Marker),
+            new(OpCode.Break_Closure),
+        ]);
+        
+        all.AddRange([
+            // Create repeat count variable
+            new(OpCode.Store_Local, repeatSlot),
+            
+            // Check if we should even loop
+            new(OpCode.Load_Local, repeatSlot),
+            new(OpCode.Load_Constant, zeroSlot),
+            new(OpCode.Greater),
+            new(OpCode.Jump_If_Not, (uint)insideBlockInstructions.Count)
+        ]);
+        
+        all.AddRange(insideBlockInstructions);
+        
+        return all.ToArray();
+    }
+
+    public override Instruction[] VisitCont_foreach(Cont_foreachContext context)
+    {
+        List<Instruction> all = [];
+        
+        var inst0 = context.var_inst(0);
+        var inst1 = context.var_inst(1);
+        
+        var tableInst = VisitExpression(context.expression());
+        
+        var countSlot = _getLocalSlot("%FOR_INDEX");
+        var repeatSlot = _getLocalSlot("%FOR_REPEAT_COUNT");
+        var tableSlot = _getLocalSlot("%FOREACH_TABLE");
+        
+        var zeroSlot = _getConstantSlot(VoxValue.Create(0));
+
+        List<string> names = [];
+        if (inst0.DISCARD() == null)
+        {
+            names.Add(inst0.ID().GetText());
+        }
+
+        if (inst1.DISCARD() == null)
+        {
+            names.Add(inst1.ID().GetText());
+        }
+        
+        var result = VisitBlockSelf(context.block(), names.ToArray());
+        
+        var blockInstructions = result.Instructions;
+        
+        var closureSlot = _getConstantSlot(new VoxValue
+        {
+            Type = ValueType.Misc,
+            Reference = new InlineClosureStore(result.Scope.Constants.ToArray(), (uint)result.Scope.Locals.Count)
+        });
+
+        uint? currentKeySlot = null;
+        uint? currentValSlot = null;
+
+        if (inst0.DISCARD() == null)
+        {
+           currentKeySlot = result.Scope.GetLocalSlot(inst0.ID().GetText()); 
+        }
+
+        if (inst1.DISCARD() == null)
+        {
+            currentValSlot = result.Scope.GetLocalSlot(inst1.ID().GetText());
+        }
+        
+        // Put table into variable (to avoid reconstructing it every loop)
+        all.AddRange(tableInst);
+        all.AddRange([
+            new(OpCode.Store_Local, tableSlot)
+        ]);
+        
+        all.AddRange([
+            // Create index variable
+            new(OpCode.Load_Constant, zeroSlot),
+            new(OpCode.Store_Local, countSlot),
+        ]);
+        
+        all.AddRange([
+            // Create repeat count variable
+            new(OpCode.Load_Local, tableSlot),
+            new(OpCode.Table_Length),
+            new(OpCode.Store_Local, repeatSlot),
+        ]);
+        
+        // Put initial values on stack
+        all.AddRange([
+            new(OpCode.Load_Local, tableSlot),
+        ]);
+        
+        all.AddRange([
+            // Enter loop
+            new(OpCode.Load_Constant, closureSlot),
+            new(OpCode.Make_Closure),
+        ]);
+
         uint blockStart = (uint)all.Count;
+
+        all.AddRange([
+            // Set initial value
+            new(OpCode.Store_Local, currentValSlot),
+        ]);
+        
+        if (currentKeySlot != null) 
+            all.AddRange([
+                new(OpCode.Load_Scoped, 1, tableSlot),
+                new(OpCode.Load_Scoped, 1, countSlot),
+                new(OpCode.Get_Key_At),
+                new(OpCode.Store_Local, currentKeySlot),
+            ]);
+
+        if (currentValSlot != null)
+            all.AddRange([
+                new(OpCode.Load_Scoped, 1, tableSlot),
+                new(OpCode.Load_Scoped, 1, countSlot),
+                new(OpCode.Get_Value_At),
+                new(OpCode.Store_Local, currentValSlot),
+            ]);
         
         // Execute main block
         all.AddRange(blockInstructions);
         
         all.Add(new(OpCode.Loop_Check_Marker));
-        
-        // Offset stored value
-        all.AddRange([
-            new(OpCode.Load_Local, currentValSlot),
-        ]);
-        all.AddRange(offsetExpression);
-        all.AddRange([
-            new(OpCode.Add),
-            new(OpCode.Store_Local, currentValSlot)
-        ]);
         
         all.AddRange([
             // Run check to see if we should loop back or not
@@ -797,7 +937,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         uint size = (uint)all.Count - blockStart;
 
         all.AddRange([
-            new(OpCode.Back_If, size+1),
+            new(OpCode.Back_If, size),
             
             new(OpCode.Loop_Exit_Marker),
             new(OpCode.Break_Closure),

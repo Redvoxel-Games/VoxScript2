@@ -56,6 +56,9 @@ public enum OpCode : uint
     Assemble_Key = 303,
     Assemble_Index = 304,
     Create_Table = 305,
+    Table_Length = 306,
+    Get_Key_At = 307,
+    Get_Value_At = 308,
     
     // Functions
     Call = 401,

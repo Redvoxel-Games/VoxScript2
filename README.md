@@ -14,9 +14,8 @@ Directly inspired by [Luau](https://www.luau.org/).
 
 Missing features in order of priority:
 
-1. foreach
-2. UserData
-3. Coroutines/Threads
+1. UserData
+2. Coroutines/Threads
 
 ## Easy to set up
 

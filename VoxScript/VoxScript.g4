@@ -83,7 +83,7 @@ function_postfix: LEFT_PAREN (expression (',' expression)*)? RIGHT_PAREN;
 
 function_params: LEFT_PAREN (var_inst (',' var_inst)*)? RIGHT_PAREN;
 
-var_inst: (ID | TUPLE) type_annotation?;
+var_inst: ID type_annotation? | DISCARD;
     
 // Keywords
 VAR: 'var';
@@ -107,6 +107,7 @@ TUPLE: '...';
 TRUE: 'true';
 FALSE: 'false';
 ID: [a-zA-Z_][a-zA-Z0-9_]*;
+DISCARD: '_';
 
 fragment ESC
     : '\\' (
