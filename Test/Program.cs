@@ -11,27 +11,9 @@ class Program
     {
         var source =
             """
-            var a = "Hello, "
-            
-            func doSmth(b) {
-                print a + b
-                
-                return 3.14159, 4
-            }
-            
-            var x, y = doSmth("World!")
-            
-            print x + y
-            
-            var num = 5
-            if (num > 5) {
-                print "up"
-            }
-            else if (num < 5) {
-                print "down"
-            }
-            else {
-                print "middle"
+            for (i=0, 10, 1) {
+                if (i%2 == 0) continue
+                print i
             }
             """;
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using Antlr4.Runtime;
 using VoxScript.Exceptions;
 using VoxScript.Interop;
@@ -22,6 +23,26 @@ internal class CompilerScope
         Parent = parent;
         parent?.Children.Add(this);
     }
+
+    public uint GetConstantSlot(VoxValue value)
+    {
+        if (Constants.Contains(value))
+        {
+            return (uint)Constants.IndexOf(value);
+        }
+        Constants.Add(value);
+        return (uint)Constants.Count - 1;
+    }
+
+    public uint GetLocalSlot(string localName)
+    {
+        if (Locals.Contains(localName))
+        {
+            return (uint)Locals.IndexOf(localName);
+        }
+        Locals.Add(localName);
+        return (uint)Locals.Count - 1;
+    }
 }
 
 internal abstract class Closure(Closure[] parents, VoxValue[] constants, uint numLocals)
@@ -40,11 +61,11 @@ internal class FunctionClosure(Closure[] parents, Instruction[] instructions, Vo
 internal class BlockClosure(Closure[] parents, VoxValue[] constants, uint numLocals)
     : Closure(parents, constants, numLocals);
 
-internal class IfClosureStore
+internal class InlineClosureStore
 {
     public VoxValue[] Constants;
     public uint LocalCount;
-    public IfClosureStore(VoxValue[] constants, uint numLocals)
+    public InlineClosureStore(VoxValue[] constants, uint numLocals)
     {
         Constants = constants;
         LocalCount = numLocals;
@@ -103,6 +124,34 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         }
         _localNames.Add(localName);
         return (uint)_localNames.Count - 1;
+    }
+
+    private Instruction[] _getStoreForVariable(string name)
+    {
+        uint depth = 0;
+        var scope = _currentScope;
+        while (true)
+        {
+            if (scope.Locals.Contains(name)) break;
+            if (scope.Parent == null)
+            {
+                // Must be trying to access global
+                if (!_hasGlobal(name)) throw new GlobalNotFoundException($"No global or local found for '{name}'!");
+                throw new ReadOnlyException($"Attempt to set global value '{name}'!");
+            }
+
+            scope = scope.Parent;
+            depth++;
+        }
+        
+        var slot = (uint)scope.Locals.IndexOf(name);
+
+        if (depth > 0)
+        {
+            return [new(OpCode.Store_Scoped, depth, slot)];
+        }
+
+        return [new(OpCode.Store_Local, slot)];
     }
 
     private Instruction[] _getFetchForVariable(string name)
@@ -217,7 +266,10 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
                 ">" => OpCode.Greater,
                 ">=" => OpCode.GreaterOrEquals,
                 "&&" => OpCode.And,
+                "!&" => OpCode.Nand,
                 "||" => OpCode.Or,
+                "!|" => OpCode.Nor,
+                "#|" => OpCode.Xor,
                 
                 _ => throw new ArgumentOutOfRangeException()
             }));
@@ -243,7 +295,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
 
         if (_notNull(ctx.identifier(), out var identifier))
         {
-            return VisitIdentifier(identifier);
+            return VisitIdentifierSelf(identifier, out _);
         }
 
         if (_notNull(ctx.func_call(), out var callCtx))
@@ -362,7 +414,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
     public override Instruction[] VisitFunc_call(Func_callContext context)
     {
         List<Instruction> fetchInstructions = [];
-        fetchInstructions.AddRange(VisitIdentifier(context.identifier()));
+        fetchInstructions.AddRange(VisitIdentifierSelf(context.identifier(), out _));
             
         uint paramCount = 0;
         foreach (var expr in context.function_postfix().expression().Reverse())
@@ -376,23 +428,34 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         return fetchInstructions.ToArray();
     }
 
-    public override Instruction[] VisitIdentifier(IdentifierContext context)
+    public Instruction[] VisitIdentifierSelf(IdentifierContext context, out Instruction[] lastKey, bool trim=false)
     {
         List<Instruction> fetchInstructions = [];
+
+        int depth = 0;
+        int maxDepth = trim ? context.postfix().Length : context.postfix().Length+1;
         
         var init = context.ID().GetText();
+
+        lastKey = [];
+
+        if (depth >= maxDepth) return [];
 
         fetchInstructions.AddRange(_getFetchForVariable(init));
 
         foreach (var postfixCtx in context.postfix())
         {
+            depth++;
+
+            List<Instruction> toAdd = [];
+            
             if (_notNull(postfixCtx.id_postfix(), out var id_pf))
             {
-                fetchInstructions.Add(new(OpCode.Load_Constant, _getConstantSlot(VoxValue.Create(id_pf.ID().GetText()))));
+                toAdd.Add(new(OpCode.Load_Constant, _getConstantSlot(VoxValue.Create(id_pf.ID().GetText()))));
             }
             else if (_notNull(postfixCtx.expression_postfix(), out var expr_pf))
             {
-                fetchInstructions.AddRange(VisitExpression(expr_pf.expression()));
+                toAdd.AddRange(VisitExpression(expr_pf.expression()));
             }
             else if (_notNull(postfixCtx.function_postfix(), out var func_pf))
             {
@@ -400,13 +463,18 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
                 foreach (var expr in func_pf.expression())
                 {
                     paramCount++;
-                    fetchInstructions.AddRange(VisitExpression(expr));
+                    toAdd.AddRange(VisitExpression(expr));
                 }
                 
-                fetchInstructions.Add(new(OpCode.Call, paramCount));
+                toAdd.Add(new(OpCode.Call, paramCount));
             }
-                
-            fetchInstructions.Add(new(OpCode.Get_Value));
+            
+            lastKey = toAdd.ToArray();
+            if (depth >= maxDepth) return fetchInstructions.ToArray();
+            
+            toAdd.Add(new(OpCode.Get_Value));
+            
+            fetchInstructions.AddRange(toAdd);
         }
         
         return fetchInstructions.ToArray();
@@ -425,6 +493,73 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
             var localSlot = _getLocalSlot(inst.ID().GetText());
             
             all.Add(new(OpCode.Store_Local, localSlot));
+        }
+        
+        return all.ToArray();
+    }
+
+    public override Instruction[] VisitVal_assign(Val_assignContext context)
+    {
+        List<Instruction> all = [];
+
+        var identifier = context.identifier();
+        var idInstr = VisitIdentifierSelf(identifier, out var keyInstr, true);
+
+        var expr = VisitExpression(context.expression());
+        
+        if (idInstr.Length == 0)
+        {
+            var store = _getStoreForVariable(identifier.ID().GetText());
+            all.AddRange(expr);
+            all.AddRange(store);
+        }
+        else
+        {
+            all.AddRange(idInstr);
+            all.AddRange(keyInstr);
+            all.AddRange(expr);
+            all.AddRange([
+                new(OpCode.Set_Key)
+            ]);
+        }
+        
+        return all.ToArray();
+    }
+
+    public override Instruction[] VisitVal_increment(Val_incrementContext context)
+    {
+        List<Instruction> all = [];
+
+        var identifier = context.identifier();
+        var idInstr = VisitIdentifierSelf(identifier, out var keyInstr, true);
+        var startVal = VisitIdentifierSelf(identifier, out _);
+
+        double dir = context.INCREMENT() != null ? 1 : -1;
+
+        var constantSlot = _getConstantSlot(VoxValue.Create(dir));
+        
+        if (idInstr.Length == 0)
+        {
+            var store = _getStoreForVariable(identifier.ID().GetText());
+            all.AddRange(startVal);
+            all.AddRange([
+                new(OpCode.Load_Constant, constantSlot),
+                new(OpCode.Add)
+            ]);
+            all.AddRange(store);
+        }
+        else
+        {
+            all.AddRange(idInstr);
+            all.AddRange(keyInstr);
+            all.AddRange(startVal);
+            all.AddRange([
+                new(OpCode.Load_Constant, constantSlot),
+                new(OpCode.Add)
+            ]);
+            all.AddRange([
+                new(OpCode.Set_Key)
+            ]);
         }
         
         return all.ToArray();
@@ -480,7 +615,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
             var constantSlot = _getConstantSlot(new VoxValue
             {
                 Type = ValueType.Misc,
-                Reference = new IfClosureStore(result.Scope.Constants.ToArray(), (uint)result.Scope.Locals.Count)
+                Reference = new InlineClosureStore(result.Scope.Constants.ToArray(), (uint)result.Scope.Locals.Count)
             });
             
             all.Add(new(OpCode.Load_Constant, constantSlot));
@@ -509,7 +644,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
                 var constantSlot = _getConstantSlot(new VoxValue
                 {
                     Type = ValueType.Misc,
-                    Reference = new IfClosureStore(result.Scope.Constants.ToArray(), (uint)result.Scope.Locals.Count)
+                    Reference = new InlineClosureStore(result.Scope.Constants.ToArray(), (uint)result.Scope.Locals.Count)
                 });
             
                 all.Add(new(OpCode.Jump_If, (uint)elseBlockInstructions.Length+3));
@@ -520,6 +655,153 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
                 all.Add(new(OpCode.Break_Closure));
             }
         }
+        
+        return all.ToArray();
+    }
+
+    public override Instruction[] VisitCont_break(Cont_breakContext context)
+    {
+        return [new(OpCode.Break)];
+    }
+
+    public override Instruction[] VisitCont_continue(Cont_continueContext context)
+    {
+        return [new(OpCode.Continue)];
+    }
+
+    public override Instruction[] VisitCont_while(Cont_whileContext context)
+    {
+        List<Instruction> all = [];
+
+        var check = VisitExpression(context.expression());
+        
+        all.AddRange(check);
+        
+        var result = VisitBlockSelf(context.block());
+        var blockInstructions = result.Instructions;
+        
+        List<Instruction> insideBlockInstructions = [];
+        insideBlockInstructions.AddRange(blockInstructions);
+        insideBlockInstructions.Add(new(OpCode.Break_Closure));
+        
+        insideBlockInstructions.AddRange(check);
+        insideBlockInstructions.AddRange([
+            new(OpCode.Loop_Check_Marker),
+            new(OpCode.Back_If, (uint)insideBlockInstructions.Count+4),
+            new(OpCode.Loop_Exit_Marker),
+        ]);
+        
+        all.AddRange(check);
+        all.Add(new(OpCode.Jump_If_Not, (uint)insideBlockInstructions.Count+2));
+
+        var constantSlot = _getConstantSlot(new VoxValue
+        {
+            Type = ValueType.Misc,
+            Reference = new InlineClosureStore(result.Scope.Constants.ToArray(), (uint)result.Scope.Locals.Count)
+        });
+            
+        all.Add(new(OpCode.Load_Constant, constantSlot));
+        all.Add(new(OpCode.Make_Closure));
+        
+        all.AddRange(insideBlockInstructions);
+        
+        return all.ToArray();
+    }
+
+    public override Instruction[] VisitCont_for(Cont_forContext context)
+    {
+        List<Instruction> all = [];
+        
+        var varName = context.ID().GetText();
+        
+        var exprs = context.expression();
+        
+        var initialExpression = VisitExpression(exprs[0]);
+        var repeatExpression = VisitExpression(exprs[1]);
+        
+        var countSlot = _getLocalSlot("%FOR_INDEX");
+        var repeatSlot = _getLocalSlot("%FOR_REPEAT_COUNT");
+        
+        var zeroSlot = _getConstantSlot(VoxValue.Create(0));
+        
+        var result = VisitBlockSelf(context.block(), [varName]);
+        
+        var blockInstructions = result.Instructions;
+        
+        _currentScope = result.Scope;
+        
+        var offsetExpression = VisitExpression(exprs[2]);
+
+        _currentScope = _currentScope.Parent!;
+        
+        var closureSlot = _getConstantSlot(new VoxValue
+        {
+            Type = ValueType.Misc,
+            Reference = new InlineClosureStore(result.Scope.Constants.ToArray(), (uint)result.Scope.Locals.Count)
+        });
+        
+        var currentValSlot = result.Scope.GetLocalSlot(varName);
+        
+        all.AddRange([
+            // Create index variable
+            new(OpCode.Load_Constant, zeroSlot),
+            new(OpCode.Store_Local, countSlot),
+        ]);
+        
+        all.AddRange(repeatExpression);
+        
+        all.AddRange([
+            // Create repeat count variable
+            new(OpCode.Store_Local, repeatSlot),
+        ]);
+        
+        // Put initial value on stack
+        all.AddRange(initialExpression);
+        
+        all.AddRange([
+            // Enter loop
+            new(OpCode.Load_Constant, closureSlot),
+            new(OpCode.Make_Closure),
+            
+            // Set initial value
+            new(OpCode.Store_Local, currentValSlot),
+        ]);
+
+        uint blockStart = (uint)all.Count;
+        
+        // Execute main block
+        all.AddRange(blockInstructions);
+        
+        all.Add(new(OpCode.Loop_Check_Marker));
+        
+        // Offset stored value
+        all.AddRange([
+            new(OpCode.Load_Local, currentValSlot),
+        ]);
+        all.AddRange(offsetExpression);
+        all.AddRange([
+            new(OpCode.Add),
+            new(OpCode.Store_Local, currentValSlot)
+        ]);
+        
+        all.AddRange([
+            // Run check to see if we should loop back or not
+            new(OpCode.Load_Scoped, 1, countSlot),
+            new(OpCode.Increment),
+            new(OpCode.Store_Scoped, 1, countSlot),
+            new(OpCode.Load_Scoped, 1, countSlot),
+            new(OpCode.Load_Scoped, 1, repeatSlot),
+            new(OpCode.Less),
+        ]);
+        
+        uint size = (uint)all.Count - blockStart;
+
+        all.AddRange([
+            new(OpCode.Back_If, size+1),
+            
+            new(OpCode.Loop_Exit_Marker),
+            new(OpCode.Break_Closure),
+        ]);
         
         return all.ToArray();
     }

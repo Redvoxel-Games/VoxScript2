@@ -14,7 +14,7 @@ Directly inspired by [Lua](https://www.lua.org/).
 
 Missing features in order of priority:
 
-1. for, foreach, while, break, continue
+1. foreach
 2. UserData
 3. Coroutines/Threads
 

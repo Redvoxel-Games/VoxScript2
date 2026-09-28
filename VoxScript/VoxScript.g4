@@ -32,7 +32,7 @@ func_define: FUNC ID function_params type_annotation? LEFT_CURLY block RIGHT_CUR
 func_call: identifier function_postfix;
 
 cont_while: 'while' LEFT_PAREN expression RIGHT_PAREN LEFT_CURLY block RIGHT_CURLY;
-cont_for: 'for' LEFT_PAREN ID ('=' expression)? ',' expression (',' expression)? RIGHT_PAREN LEFT_CURLY block RIGHT_CURLY;
+cont_for: 'for' LEFT_PAREN ID '=' expression ',' expression ',' expression RIGHT_PAREN LEFT_CURLY block RIGHT_CURLY;
 cont_foreach: 'foreach' LEFT_PAREN var_inst ',' var_inst 'in' expression RIGHT_PAREN LEFT_CURLY block RIGHT_CURLY;
 
 cont_return: 'return' (expression (',' expression)*)?;
@@ -51,7 +51,10 @@ expression
     | left=expression op=MUL_DIV right=expression
     | left=expression op=ADD_SUB right=expression
     | left=expression op=COND_AND right=expression
+    | left=expression op=COND_NAND right=expression
     | left=expression op=COND_OR right=expression
+    | left=expression op=COND_NOR right=expression
+    | left=expression op=COND_XOR right=expression
     | left=expression op=COMPARE right=expression
     | condition=expression '?' primary=expression ':' secondary=expression
     | NUMBER
@@ -168,4 +171,7 @@ COND_LESSTHAN: '<';
 COND_GREATEROREQUAL: '>=';
 COND_LESSOREQUAL: '<=';
 COND_AND: '&&';
+COND_NAND: '!&';
 COND_OR: '||';
+COND_NOR: '!|';
+COND_XOR: '#|';

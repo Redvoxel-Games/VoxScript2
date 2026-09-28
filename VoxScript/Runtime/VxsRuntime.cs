@@ -23,6 +23,11 @@ public class VxsRuntime(ScriptGlobals globals)
         return val;
     }
 
+    public bool EvaluatesToTrue(VoxValue value)
+    {
+        return value is { Type: ValueType.Bool, Bool: true } || (value.Type != ValueType.Null && value.Type != ValueType.Bool);
+    }
+
     public VoxValue[] RunProgram(VxsProgram program)
     {
         var newClosure = new FunctionClosure([], program._instructions, program._constants, program._localCount);
@@ -54,11 +59,27 @@ public class VxsRuntime(ScriptGlobals globals)
 
             closure = previous;
         }
+
+        bool continuing = false;
+        bool breaking = false;
         
         while (instructionIndex < instructions.Length)
         {
             var instruction = instructions[instructionIndex++];
             var opCode = instruction.OpCode;
+
+            if (continuing)
+            {
+                if (opCode == OpCode.Loop_Check_Marker) continuing = false;
+                continue;
+            }
+
+            if (breaking)
+            {
+                if (opCode == OpCode.Loop_Exit_Marker) breaking = false;
+                continue;
+            }
+            
             var operand = instruction.Operand;
             var secondary = instruction.Secondary;
 
@@ -77,15 +98,15 @@ public class VxsRuntime(ScriptGlobals globals)
             Closure newClosure;
             
             // Console.WriteLine($"{instructionIndex}: {opCode} {operand}");
-            
+
+            Closure? backtracked;
+            bool aIsTrue;
             switch (opCode)
             {
                 case OpCode.Jump_If:
                     value = PopStack();
-                    
-                    evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || (value.Type != ValueType.Null && value.Type != ValueType.Bool);
 
-                    if (evaluatesToTrue)
+                    if (EvaluatesToTrue(value))
                     {
                         instructionIndex += operand;
                     }
@@ -95,9 +116,7 @@ public class VxsRuntime(ScriptGlobals globals)
                 case OpCode.Jump_If_Not:
                     value = PopStack();
                     
-                    evaluatesToTrue = value is { Type: ValueType.Bool, Bool: true } || (value.Type != ValueType.Null && value.Type != ValueType.Bool);
-                    
-                    if (!evaluatesToTrue)
+                    if (!EvaluatesToTrue(value))
                     {
                         instructionIndex += operand;
                     }
@@ -128,6 +147,14 @@ public class VxsRuntime(ScriptGlobals globals)
                     
                     break;
                 
+                case OpCode.Continue:
+                    continuing = true;
+                    break;
+                
+                case OpCode.Break:
+                    breaking = true;
+                    break;
+                
                 case OpCode.Load_Constant:
                     PushStack(constants[operand]);
                     break;
@@ -150,12 +177,18 @@ public class VxsRuntime(ScriptGlobals globals)
                     break;
                 
                 case OpCode.Load_Scoped:
-                    var backtracked = closure.Parents[closure.Parents.Length-operand];
+                    backtracked = closure.Parents[closure.Parents.Length-operand];
 
                     val = backtracked.Locals[(int)secondary!];
                     
                     PushStack(val);
 
+                    break;
+                
+                case OpCode.Store_Scoped:
+                    backtracked = closure.Parents[closure.Parents.Length-operand];
+                    backtracked.Locals[(int)secondary!] = PopStack();
+                    
                     break;
                 
                 case OpCode.Mark_Ownership:
@@ -239,7 +272,7 @@ public class VxsRuntime(ScriptGlobals globals)
 
                     if (ifDefVal.Type != ValueType.Misc) throw new Exception();
 
-                    var ifDef = (ifDefVal.Reference as IfClosureStore)!;
+                    var ifDef = (ifDefVal.Reference as InlineClosureStore)!;
                         
                     newClosure = new BlockClosure(parents, ifDef.Constants, ifDef.LocalCount);
                     
@@ -374,6 +407,24 @@ public class VxsRuntime(ScriptGlobals globals)
                     
                     break;
                 
+                case OpCode.Increment:
+                    val = PopStack();
+                    
+                    if (val.Type != ValueType.Number) throw new Exception($"Attempt to increment {val.Type}!");
+
+                    PushStack(VoxValue.Create(val.Number+1));
+                    
+                    break;
+                
+                case OpCode.Decrement:
+                    val = PopStack();
+                    
+                    if (val.Type != ValueType.Number) throw new Exception($"Attempt to decrement {val.Type}!");
+
+                    PushStack(VoxValue.Create(val.Number-1));
+                    
+                    break;
+                
                 case OpCode.Less:
                     a = PopStack();
                     b = PopStack();
@@ -422,6 +473,70 @@ public class VxsRuntime(ScriptGlobals globals)
 
                     break;
                 
+                case OpCode.Equals:
+                    a = PopStack();
+                    b = PopStack();
+
+                    PushStack(VoxValue.Create(a.Equals(b)));
+                    break;
+                
+                case OpCode.NotEquals:
+                    a = PopStack();
+                    b = PopStack();
+                    
+                    PushStack(VoxValue.Create(!a.Equals(b)));
+                    break;
+                
+                case OpCode.And:
+                    a = PopStack();
+                    b = PopStack();
+
+                    aIsTrue = EvaluatesToTrue(a);
+                    var bIsTrue = EvaluatesToTrue(b);
+                    
+                    PushStack(VoxValue.Create(aIsTrue && bIsTrue));
+                    break;
+                
+                case OpCode.Or:
+                    a = PopStack();
+                    b = PopStack();
+
+                    aIsTrue = EvaluatesToTrue(a);
+                    bIsTrue = EvaluatesToTrue(b);
+                    
+                    PushStack(VoxValue.Create(aIsTrue || bIsTrue));
+                    break;
+                
+                case OpCode.Nand:
+                    a = PopStack();
+                    b = PopStack();
+                    
+                    aIsTrue = EvaluatesToTrue(a);
+                    bIsTrue = EvaluatesToTrue(b);
+                    
+                    PushStack(VoxValue.Create(!(aIsTrue && bIsTrue)));
+                    break;
+                
+                case OpCode.Nor:
+                    a = PopStack();
+                    b = PopStack();
+
+                    aIsTrue = EvaluatesToTrue(a);
+                    bIsTrue = EvaluatesToTrue(b);
+                    
+                    PushStack(VoxValue.Create(!(aIsTrue || bIsTrue)));
+                    break;
+                
+                case OpCode.Xor:
+                    a = PopStack();
+                    b = PopStack();
+
+                    aIsTrue = EvaluatesToTrue(a);
+                    bIsTrue = EvaluatesToTrue(b);
+                    
+                    PushStack(VoxValue.Create((aIsTrue || bIsTrue) && !(aIsTrue && bIsTrue)));
+                    break;
+                    
                 case OpCode.Return:
                     // Dump entire stack as return values
                     uint returnSize = _stackIndex;
@@ -451,6 +566,9 @@ public class VxsRuntime(ScriptGlobals globals)
                     }
 
                     break;
+                
+                case OpCode.Loop_Check_Marker: break;
+                case OpCode.Loop_Exit_Marker: break;
                 
                 default:
                     throw new NotImplementedException();

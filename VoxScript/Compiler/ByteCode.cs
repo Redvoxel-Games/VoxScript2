@@ -12,6 +12,7 @@ public enum OpCode : uint
     Load_Global = 005,
     
     Load_Scoped = 006,
+    Store_Scoped = 007,
     
     Dump = 099,
     
@@ -31,8 +32,13 @@ public enum OpCode : uint
     GreaterOrEquals = 112,
     And = 113,
     Or = 114,
+    Nand = 115,
+    Nor = 116,
+    Xor = 117,
     
-    Invert = 115,
+    Invert = 118,
+    Increment = 119,
+    Decrement = 120,
     
     // Control
     Jump_If = 201,
@@ -41,6 +47,8 @@ public enum OpCode : uint
     Back_If_Not = 204,
     Make_Closure = 207,
     Break_Closure = 208,
+    Continue = 209,
+    Break = 210,
     
     // Table
     Get_Value = 301,
@@ -53,6 +61,10 @@ public enum OpCode : uint
     Call = 401,
     Return = 402,
     Mark_Ownership = 403,
+    
+    // Markers
+    Loop_Check_Marker = 501,
+    Loop_Exit_Marker = 502,
     
     // Misc
     Print = 901,
