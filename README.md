@@ -2,13 +2,13 @@
 
 Easily embeddable scripting language for C#.
 
-Directly inspired by [Lua](https://www.lua.org/).
+Directly inspired by [Luau](https://www.luau.org/).
 
 ## Core features
 
 * Easy to set up
 * Easily embeddable
-* Fast (Almost as fast as lua)
+* Fast (Almost as fast as luau)
 
 ### INCOMPLETE
 
