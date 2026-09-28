@@ -9,11 +9,16 @@ class Program
 {
     static void Main(string[] args)
     {
+        var thing = Console.ReadLine(); // Halt until input is given, to attach debugger
+
         var source =
             """
-            for (i=0, 10, 1) {
-                if (i%2 == 0) continue
-                print i
+            var c = 0
+            for (i=0, 100000, 1) {
+                if (i%2 == 0) c++
+                else c--
+                
+                print c
             }
             """;
 

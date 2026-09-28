@@ -8,7 +8,7 @@ Directly inspired by [Lua](https://www.lua.org/).
 
 * Easy to set up
 * Easily embeddable
-* Fast (theoretically, no benchmarks have been performed yet)
+* Fast
 
 ### INCOMPLETE
 
