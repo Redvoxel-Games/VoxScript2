@@ -7,20 +7,20 @@ using VoxScript.Runtime;
 
 public class UserDataTest
 {
-    public double X = 3.14159;
-    public VoxValue[] someFunc(VoxValue[] arr)
+    [ExposeToVxs] public double X = 3.14159;
+    [ExposeToVxs] public VoxValue[] someFunc(VoxValue[] arr)
     {
         Console.WriteLine("Got: " + arr.Length);
         
         return [VoxValue.Create(21)];
     }
     
-    public UserDataTest2 otherData = new UserDataTest2();
+    [ExposeToVxs] public UserDataTest2 otherData = new UserDataTest2();
 }
 
 public class UserDataTest2
 {
-    public double Y = 42;
+    [ExposeToVxs] public double Y = 42;
 }
 
 class Program

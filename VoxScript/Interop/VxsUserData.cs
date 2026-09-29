@@ -21,6 +21,9 @@ internal static class UserDataCache
     }
 }
 
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Method)]
+public class ExposeToVxs : Attribute;
+
 public class VxsUserData : Indexable
 {
     private FieldInfo[] _fields;

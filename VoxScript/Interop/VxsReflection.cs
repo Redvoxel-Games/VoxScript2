@@ -25,11 +25,11 @@ public static class VxsReflection
             flags |= BindingFlags.Instance;
         }
         
-        var fieldInfos = type.GetFields(flags);
-        var propertyInfos = type.GetProperties(flags);
-        var methodInfos = type.GetMethods(flags);
+        var fieldInfos = type.GetFields(flags).Where((info, _) => info.GetCustomAttribute<ExposeToVxs>() != null);
+        var propertyInfos = type.GetProperties(flags).Where((info, _) => info.GetCustomAttribute<ExposeToVxs>() != null);
+        var methodInfos = type.GetMethods(flags).Where((info, _) => info.GetCustomAttribute<ExposeToVxs>() != null);
         
-        var cache = new ReflectionCache(fieldInfos, propertyInfos, methodInfos);
+        var cache = new ReflectionCache(fieldInfos.ToArray(), propertyInfos.ToArray(), methodInfos.ToArray());
         
         _caches[(type, forStatic)] = cache;
         
