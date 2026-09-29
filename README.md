@@ -8,7 +8,7 @@ Directly inspired by [Luau](https://www.luau.org/).
 
 * Easy to set up
 * Easily embeddable
-* Fast (Almost as fast as luau)
+* Fast
 
 ### INCOMPLETE
 
