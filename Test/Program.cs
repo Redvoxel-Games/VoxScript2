@@ -9,18 +9,19 @@ class Program
 {
     static void Main(string[] args)
     {
-        // var thing = Console.ReadLine(); // Halt until input is given, to attach debugger
+        // var thing = Console.ReadLine(); // Halt until input is given
 
         var source =
             """
-            var tbl = {
-                1="Item1",
-                2="Item2",
-                3="Hello, ",
-                john="World!",
-            }
-            foreach (k, v in tbl) {
-                print k + ": " + v;
+            var table = {5, 3, 7, 4, 6, 2, 3, 8, 5, 10, 90}
+            
+            foreach (k, v in table)
+            {
+                print k==4 || k==2
+                if (k == 4 || k == 2)
+                {
+                    print v
+                }
             }
             """;
 

@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VoxScript", "VoxScript\VoxS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{10AF8CE9-6A13-4749-9268-DD87FC1A87C7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VxsRun", "VxsRun\VxsRun.csproj", "{959B35BC-93B8-4CA6-8AA0-8B57328EA3EB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{10AF8CE9-6A13-4749-9268-DD87FC1A87C7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{10AF8CE9-6A13-4749-9268-DD87FC1A87C7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{10AF8CE9-6A13-4749-9268-DD87FC1A87C7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{959B35BC-93B8-4CA6-8AA0-8B57328EA3EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{959B35BC-93B8-4CA6-8AA0-8B57328EA3EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{959B35BC-93B8-4CA6-8AA0-8B57328EA3EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{959B35BC-93B8-4CA6-8AA0-8B57328EA3EB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

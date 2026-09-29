@@ -535,6 +535,8 @@ public class VxsRuntime(ScriptGlobals globals)
                 case OpCode.Or:
                     a = PopStack();
                     b = PopStack();
+                    
+                    Console.WriteLine(a.ToString() + " | " + b.ToString());
 
                     aIsTrue = EvaluatesToTrue(a);
                     bIsTrue = EvaluatesToTrue(b);

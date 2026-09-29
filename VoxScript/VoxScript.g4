@@ -50,12 +50,12 @@ expression
     | left=expression op='^' right=expression
     | left=expression op=MUL_DIV right=expression
     | left=expression op=ADD_SUB right=expression
+    | left=expression op=COMPARE right=expression
     | left=expression op=COND_AND right=expression
     | left=expression op=COND_NAND right=expression
     | left=expression op=COND_OR right=expression
     | left=expression op=COND_NOR right=expression
     | left=expression op=COND_XOR right=expression
-    | left=expression op=COMPARE right=expression
     | condition=expression '?' primary=expression ':' secondary=expression
     | NUMBER
     | STRING

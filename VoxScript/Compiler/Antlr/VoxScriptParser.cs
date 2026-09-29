@@ -1570,12 +1570,12 @@ public partial class VoxScriptParser : Parser {
 		}
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode MUL_DIV() { return GetToken(VoxScriptParser.MUL_DIV, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ADD_SUB() { return GetToken(VoxScriptParser.ADD_SUB, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COMPARE() { return GetToken(VoxScriptParser.COMPARE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COND_AND() { return GetToken(VoxScriptParser.COND_AND, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COND_NAND() { return GetToken(VoxScriptParser.COND_NAND, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COND_OR() { return GetToken(VoxScriptParser.COND_OR, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COND_NOR() { return GetToken(VoxScriptParser.COND_NOR, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COND_XOR() { return GetToken(VoxScriptParser.COND_XOR, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COMPARE() { return GetToken(VoxScriptParser.COMPARE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode COLON() { return GetToken(VoxScriptParser.COLON, 0); }
 		public ExpressionContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
@@ -1746,7 +1746,7 @@ public partial class VoxScriptParser : Parser {
 						State = 232;
 						if (!(Precpred(Context, 15))) throw new FailedPredicateException(this, "Precpred(Context, 15)");
 						State = 233;
-						_localctx.op = Match(COND_AND);
+						_localctx.op = Match(COMPARE);
 						State = 234;
 						_localctx.right = expression(16);
 						}
@@ -1759,7 +1759,7 @@ public partial class VoxScriptParser : Parser {
 						State = 235;
 						if (!(Precpred(Context, 14))) throw new FailedPredicateException(this, "Precpred(Context, 14)");
 						State = 236;
-						_localctx.op = Match(COND_NAND);
+						_localctx.op = Match(COND_AND);
 						State = 237;
 						_localctx.right = expression(15);
 						}
@@ -1772,7 +1772,7 @@ public partial class VoxScriptParser : Parser {
 						State = 238;
 						if (!(Precpred(Context, 13))) throw new FailedPredicateException(this, "Precpred(Context, 13)");
 						State = 239;
-						_localctx.op = Match(COND_OR);
+						_localctx.op = Match(COND_NAND);
 						State = 240;
 						_localctx.right = expression(14);
 						}
@@ -1785,7 +1785,7 @@ public partial class VoxScriptParser : Parser {
 						State = 241;
 						if (!(Precpred(Context, 12))) throw new FailedPredicateException(this, "Precpred(Context, 12)");
 						State = 242;
-						_localctx.op = Match(COND_NOR);
+						_localctx.op = Match(COND_OR);
 						State = 243;
 						_localctx.right = expression(13);
 						}
@@ -1798,7 +1798,7 @@ public partial class VoxScriptParser : Parser {
 						State = 244;
 						if (!(Precpred(Context, 11))) throw new FailedPredicateException(this, "Precpred(Context, 11)");
 						State = 245;
-						_localctx.op = Match(COND_XOR);
+						_localctx.op = Match(COND_NOR);
 						State = 246;
 						_localctx.right = expression(12);
 						}
@@ -1811,7 +1811,7 @@ public partial class VoxScriptParser : Parser {
 						State = 247;
 						if (!(Precpred(Context, 10))) throw new FailedPredicateException(this, "Precpred(Context, 10)");
 						State = 248;
-						_localctx.op = Match(COMPARE);
+						_localctx.op = Match(COND_XOR);
 						State = 249;
 						_localctx.right = expression(11);
 						}
@@ -2898,11 +2898,11 @@ public partial class VoxScriptParser : Parser {
 		219,1,0,0,0,221,220,1,0,0,0,222,258,1,0,0,0,223,224,10,18,0,0,224,225,
 		5,5,0,0,225,257,3,38,19,19,226,227,10,17,0,0,227,228,5,39,0,0,228,257,
 		3,38,19,18,229,230,10,16,0,0,230,231,5,40,0,0,231,257,3,38,19,17,232,233,
-		10,15,0,0,233,234,5,60,0,0,234,257,3,38,19,16,235,236,10,14,0,0,236,237,
-		5,61,0,0,237,257,3,38,19,15,238,239,10,13,0,0,239,240,5,62,0,0,240,257,
-		3,38,19,14,241,242,10,12,0,0,242,243,5,63,0,0,243,257,3,38,19,13,244,245,
-		10,11,0,0,245,246,5,64,0,0,246,257,3,38,19,12,247,248,10,10,0,0,248,249,
-		5,41,0,0,249,257,3,38,19,11,250,251,10,9,0,0,251,252,5,6,0,0,252,253,3,
+		10,15,0,0,233,234,5,41,0,0,234,257,3,38,19,16,235,236,10,14,0,0,236,237,
+		5,60,0,0,237,257,3,38,19,15,238,239,10,13,0,0,239,240,5,61,0,0,240,257,
+		3,38,19,14,241,242,10,12,0,0,242,243,5,62,0,0,243,257,3,38,19,13,244,245,
+		10,11,0,0,245,246,5,63,0,0,246,257,3,38,19,12,247,248,10,10,0,0,248,249,
+		5,64,0,0,249,257,3,38,19,11,250,251,10,9,0,0,251,252,5,6,0,0,252,253,3,
 		38,19,0,253,254,5,29,0,0,254,255,3,38,19,10,255,257,1,0,0,0,256,223,1,
 		0,0,0,256,226,1,0,0,0,256,229,1,0,0,0,256,232,1,0,0,0,256,235,1,0,0,0,
 		256,238,1,0,0,0,256,241,1,0,0,0,256,244,1,0,0,0,256,247,1,0,0,0,256,250,

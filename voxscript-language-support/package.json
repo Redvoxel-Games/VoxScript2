@@ -1,0 +1,73 @@
+{
+  "name": "voxscript-language-support",
+  "displayName": "VoxScript Language Support",
+  "description": "Adds support for the VoxScript2 scripting language",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.138.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+
+  "activationEvents": [
+        "*"
+    ],
+
+  "contributes": {
+    "commands": [
+      {
+          "command": "voxscript-language-support.runFile",
+          "title": "VoxScript: Run File"
+      }
+    ],
+    "languages": [
+      {
+        "id": "VoxScript2",
+        "aliases": [
+          "VoxScript"
+        ],
+        "extensions": [
+          ".vxs"
+        ],
+        "icon": {
+          "light": "VoxScriptIcon.png",
+          "dark": "VoxScriptIcon.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "VoxScript2",
+        "scopeName": "source.VoxScript2",
+        "path": "./syntaxes/VoxScript2.tmLanguage.json"
+      }
+    ],
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "24.x",
+    "@types/vscode": "^1.138.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  },
+  "overrides": {
+    "diff": "^8.0.4",
+    "serialize-javascript": "^7.0.6"
+  },
+  "dependencies": {
+    "antlr4": "^4.13.2"
+  }
+}

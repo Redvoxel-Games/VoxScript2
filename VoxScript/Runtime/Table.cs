@@ -2,16 +2,23 @@
 
 namespace VoxScript.Runtime;
 
-public sealed class Table
+public abstract class Indexable
+{
+    public abstract VoxValue Get(VoxValue key);
+    public abstract void Set(VoxValue key, VoxValue value);
+    public abstract uint Length { get; }
+}
+
+public sealed class Table : Indexable
 {
     private readonly Dictionary<VoxValue, VoxValue> _values = [];
 
-    public VoxValue Get(VoxValue key)
+    public override VoxValue Get(VoxValue key)
     {
         return _values.TryGetValue(key, out var value) ? value : VoxValue.Null;
     }
 
-    public void Set(VoxValue key, VoxValue value)
+    public override void Set(VoxValue key, VoxValue value)
     {
         if (value.Type == ValueType.Null)
         {
@@ -23,7 +30,7 @@ public sealed class Table
         }
     }
 
-    public uint Length => (uint)_values.Count;
+    public override uint Length => (uint)_values.Count;
 
     public VoxValue GetKeyAt(uint index)
     {
