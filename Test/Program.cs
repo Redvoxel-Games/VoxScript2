@@ -25,17 +25,11 @@ class Program
             }
             """;
 
-        var globals = new ScriptGlobals();
-        globals.SetGlobal("someFunction", VoxValue.Create(values =>
-        {
-            string str = values[0].ToString();
-            for (var i = 1; i < values.Length; i++)
-            {
-                str += " " + values[i];
-            }
-            Console.WriteLine(str);
-            return [VoxValue.Null];
-        }));
+        ScriptGlobals globals = ScriptGlobals.Create()
+            .AddMathLibrary()
+            .AddTableLibrary()
+            .AddStringLibrary()
+            .Build();
 
         var program = VxsCompiler.CompileScript(source, globals);
 

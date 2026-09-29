@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 
 namespace VoxScript.Runtime;
 
@@ -9,8 +10,10 @@ public abstract class Indexable
     public abstract uint Length { get; }
 }
 
-public sealed class Table : Indexable
+public sealed class Table : Indexable, IEnumerable<KeyValuePair<VoxValue, VoxValue>>
 {
+    public bool frozen = false;
+    
     private readonly Dictionary<VoxValue, VoxValue> _values = [];
 
     public override VoxValue Get(VoxValue key)
@@ -20,6 +23,8 @@ public sealed class Table : Indexable
 
     public override void Set(VoxValue key, VoxValue value)
     {
+        if (frozen) throw new InvalidOperationException("Table is frozen!");
+        
         if (value.Type == ValueType.Null)
         {
             _values.Remove(key);
@@ -40,5 +45,15 @@ public sealed class Table : Indexable
     public VoxValue GetValueAt(uint index)
     {
         return _values.Values.ToArray()[index];
+    }
+
+    public IEnumerator<KeyValuePair<VoxValue, VoxValue>> GetEnumerator()
+    {
+        return _values.GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
     }
 }

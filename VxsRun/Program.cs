@@ -23,8 +23,12 @@ class Program
         Console.WriteLine("Running file: " + filePath + "\n");
         
         string source = File.ReadAllText(filePath);
-        
-        ScriptGlobals globals = new ScriptGlobals();
+
+        ScriptGlobals globals = ScriptGlobals.Create()
+            .AddMathLibrary()
+            .AddTableLibrary()
+            .AddStringLibrary()
+            .Build();
         
         var runtime = new VxsRuntime(globals);
         
