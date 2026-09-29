@@ -5,6 +5,24 @@ namespace Test;
 
 using VoxScript.Runtime;
 
+public class UserDataTest
+{
+    public double X = 3.14159;
+    public VoxValue[] someFunc(VoxValue[] arr)
+    {
+        Console.WriteLine("Got: " + arr.Length);
+        
+        return [VoxValue.Create(21)];
+    }
+    
+    public UserDataTest2 otherData = new UserDataTest2();
+}
+
+public class UserDataTest2
+{
+    public double Y = 42;
+}
+
 class Program
 {
     static void Main(string[] args)
@@ -13,16 +31,15 @@ class Program
 
         var source =
             """
-            var table = {5, 3, 7, 4, 6, 2, 3, 8, 5, 10, 90}
+            print data.X
+            data.X = 2
+            print data.X
             
-            foreach (k, v in table)
-            {
-                print k==4 || k==2
-                if (k == 4 || k == 2)
-                {
-                    print v
-                }
-            }
+            print data.someFunc("Hi!")
+            
+            print data.otherData.Y
+            data.otherData = overwriteTest
+            print data.otherData.Y
             """;
 
         ScriptGlobals globals = ScriptGlobals.Create()
@@ -30,6 +47,11 @@ class Program
             .AddTableLibrary()
             .AddStringLibrary()
             .Build();
+        
+        var dataTest = new UserDataTest();
+        
+        globals.SetGlobal("data", VoxValue.Create(VxsUserData.Create(dataTest)));
+        globals.SetGlobal("overwriteTest", VoxValue.Create(VxsUserData.Create(new UserDataTest2() {Y=-21})));
 
         var program = VxsCompiler.CompileScript(source, globals);
 

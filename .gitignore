@@ -485,3 +485,5 @@ $RECYCLE.BIN/
 *.etlx
 *.nettrace
 .antlr/
+/VxsRun/Output
+/VxsRun/build

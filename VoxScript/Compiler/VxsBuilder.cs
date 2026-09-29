@@ -136,7 +136,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
             if (scope.Parent == null)
             {
                 // Must be trying to access global
-                if (!_hasGlobal(name)) throw new GlobalNotFoundException($"No global or local found for '{name}'!");
+                if (!_hasGlobal(name)) throw new Exceptions.Exceptions($"No global or local found for '{name}'!");
                 throw new ReadOnlyException($"Attempt to set global value '{name}'!");
             }
 
@@ -164,7 +164,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
             if (scope.Parent == null)
             {
                 // Must be trying to access global
-                if (!_hasGlobal(name)) throw new GlobalNotFoundException($"No global or local found for '{name}'");
+                if (!_hasGlobal(name)) throw new Exceptions.Exceptions($"No global or local found for '{name}'");
                 
                 var constantSlot = _getConstantSlot(VoxValue.Create(name));
                 return [
@@ -365,6 +365,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         
         var constantSlot = _getConstantSlot(VoxValue.Create(func));
         fetchInstructions.Add(new(OpCode.Load_Constant, constantSlot));
+        fetchInstructions.Add(new(OpCode.Mark_Ownership));
         
         return fetchInstructions.ToArray();
     }

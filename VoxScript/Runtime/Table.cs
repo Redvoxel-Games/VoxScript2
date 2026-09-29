@@ -8,6 +8,8 @@ public abstract class Indexable
     public abstract VoxValue Get(VoxValue key);
     public abstract void Set(VoxValue key, VoxValue value);
     public abstract uint Length { get; }
+    public abstract VoxValue GetKeyAt(uint indexNumber);
+    public abstract VoxValue GetValueAt(uint indexNumber);
 }
 
 public sealed class Table : Indexable, IEnumerable<KeyValuePair<VoxValue, VoxValue>>
@@ -37,12 +39,12 @@ public sealed class Table : Indexable, IEnumerable<KeyValuePair<VoxValue, VoxVal
 
     public override uint Length => (uint)_values.Count;
 
-    public VoxValue GetKeyAt(uint index)
+    public override VoxValue GetKeyAt(uint index)
     {
         return _values.Keys.ToArray()[index];
     }
 
-    public VoxValue GetValueAt(uint index)
+    public override VoxValue GetValueAt(uint index)
     {
         return _values.Values.ToArray()[index];
     }

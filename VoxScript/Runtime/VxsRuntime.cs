@@ -90,7 +90,7 @@ public class VxsRuntime(ScriptGlobals globals)
             VoxValue key;
             VoxValue table;
             
-            Table? tableRef;
+            Indexable? tableRef;
 
             bool evaluatesToTrue;
             VoxValue val;
@@ -309,7 +309,7 @@ public class VxsRuntime(ScriptGlobals globals)
 
                     if (table.Type != ValueType.Table || key.Type == ValueType.Null) throw new Exception($"Attempt to index {table.Type} with {key.ToString()}");
                     
-                    tableRef = table.Reference as Table;
+                    tableRef = table.Reference as Indexable;
 
                     value = tableRef!.Get(key);
                     PushStack(value);
@@ -322,7 +322,7 @@ public class VxsRuntime(ScriptGlobals globals)
                     
                     if (table.Type != ValueType.Table || key.Type == ValueType.Null) throw new Exception($"Attempt to index {table.Type} with {key.ToString()}");
                     
-                    tableRef = table.Reference as Table;
+                    tableRef = table.Reference as Indexable;
                     tableRef!.Set(key, value);
                     
                     break;
@@ -332,7 +332,7 @@ public class VxsRuntime(ScriptGlobals globals)
 
                     if (table.Type != ValueType.Table) throw new Exception($"Attempt to index {table.Type}!");
                     
-                    tableRef = table.Reference as Table;
+                    tableRef = table.Reference as Indexable;
                     PushStack(VoxValue.Create(tableRef!.Length));
                     
                     break;
@@ -341,7 +341,7 @@ public class VxsRuntime(ScriptGlobals globals)
                     value = PopStack();
                     table = PopStack();
                     
-                    tableRef = table.Reference as Table;
+                    tableRef = table.Reference as Indexable;
                     tableRef!.Set(VoxValue.Create(operand), value);
 
                     PushStack(table);
@@ -353,7 +353,7 @@ public class VxsRuntime(ScriptGlobals globals)
                     key = PopStack();
                     table = PopStack();
                     
-                    tableRef = table.Reference as Table;
+                    tableRef = table.Reference as Indexable;
                     tableRef!.Set(key, value);
                     
                     PushStack(table);
@@ -371,7 +371,7 @@ public class VxsRuntime(ScriptGlobals globals)
                     if (table.Type != ValueType.Table) throw new Exception($"Attempt to index {table.Type} with '{index.ToString()}'");
                     if (index.Type != ValueType.Number) throw new Exception($"Attempt to index table with {index.ToString()}");
 
-                    tableRef = table.Reference as Table;
+                    tableRef = table.Reference as Indexable;
                     PushStack(tableRef!.GetKeyAt((uint)index.Number));
                     
                     break;
@@ -383,7 +383,7 @@ public class VxsRuntime(ScriptGlobals globals)
                     if (table.Type != ValueType.Table) throw new Exception($"Attempt to index {table.Type} with '{index.ToString()}'");
                     if (index.Type != ValueType.Number) throw new Exception($"Attempt to index table with {index.ToString()}");
 
-                    tableRef = table.Reference as Table;
+                    tableRef = table.Reference as Indexable;
                     PushStack(tableRef!.GetValueAt((uint)index.Number));
                     
                     break;
