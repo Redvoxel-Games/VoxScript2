@@ -5,6 +5,14 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>VoxScript</RootNamespace>
+        <Version>2.0.0</Version>
+        <Authors>Redvoxel Games</Authors>
+        <RepositoryUrl>https://github.com/Redvoxel-Games/VoxScript2</RepositoryUrl>
+        <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Title>VoxScript2</Title>
+        <Description>Easily embeddable scripting language</Description>
+        <PackageTags>Language, Scripting</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>
@@ -13,6 +21,11 @@
     
     <ItemGroup>
         <EmbeddedResource Include="./VoxScript.g4" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <None Include="./README.md" Pack="true" PackagePath="\"/>
+        <None Include="../LICENSE.txt" Pack="true" PackagePath="\"/>
     </ItemGroup>
 
 </Project>
