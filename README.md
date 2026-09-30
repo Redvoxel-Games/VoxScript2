@@ -57,7 +57,7 @@ Valid types:
 * `bool`
 * `Func<VoxValue[], VoxValue[]>`
 * `FunctionPrototype`
-* `Table`
+* `Indexable`
 
 ### Globals
 
