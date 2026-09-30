@@ -17,7 +17,7 @@ Currently missing coroutines/threads.
 ## Easy to set up
 
 First of all, Install the package via NuGet:
-`dotnet --install VoxScript2`
+`dotnet add package VoxScript2`
 
 And then running a script is as easy as:
 
