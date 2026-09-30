@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\VoxScript\VoxScript.csproj" />
+      <ProjectReference Include="..\VoxScript2\VoxScript2.csproj" />
     </ItemGroup>
 
 </Project>

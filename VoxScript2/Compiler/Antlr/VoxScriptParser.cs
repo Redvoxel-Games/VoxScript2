@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-// Generated from VoxScript.g4 by ANTLR 4.13.2
+// Generated from VoxScript2.g4 by ANTLR 4.13.2
 
 // Unreachable code detected
 #pragma warning disable 0162
@@ -100,7 +100,7 @@ public partial class VoxScriptParser : Parser {
 		}
 	}
 
-	public override string GrammarFileName { get { return "VoxScript.g4"; } }
+	public override string GrammarFileName { get { return "VoxScript2.g4"; } }
 
 	public override string[] RuleNames { get { return ruleNames; } }
 

@@ -8,7 +8,7 @@ public static class Sample
 {
     public static void Run()
     {
-        // Source code written in VoxScript
+        // Source code written in VoxScript2
         var source =
             """
             print "Hello, World!"
