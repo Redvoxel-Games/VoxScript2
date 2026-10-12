@@ -34,6 +34,24 @@ public class VxsRuntime(ScriptGlobals globals)
         return Run(newClosure, []);
     }
 
+    public VoxValue[] RunFunction(FunctionPrototype func, VoxValue[] inputs)
+    {
+        
+        var functionClosure = func._parentClosure;
+        var parents = new Closure[functionClosure.Parents.Length + 1];
+
+        for (var i=0; i<functionClosure.Parents.Length; i++)
+        {
+            parents[i] = functionClosure.Parents[i];
+        }
+
+        parents[^1] = functionClosure;
+        
+        var newClosure = new FunctionClosure(parents, func.Instructions, func.Constants, func.LocalCount);
+
+        return Run(newClosure, inputs);
+    }
+
     internal VoxValue[] Run(Closure closure, VoxValue[] inputs)
     {
         Instruction[] instructions = (closure as FunctionClosure)!.Instructions;

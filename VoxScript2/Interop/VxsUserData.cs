@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Data;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using VoxScript.Exceptions;
 using VoxScript.Runtime;
@@ -24,6 +25,15 @@ internal static class UserDataCache
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Method)]
 public class ExposeToVxs : Attribute;
 
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+public class VxsReadOnly : Attribute;
+
+public interface IVxsIndexable
+{
+    public virtual VoxValue Get(VoxValue key) { return VoxValue.Null; }
+    public virtual void Set(VoxValue key, VoxValue value) { }
+}
+
 public class VxsUserData : Indexable
 {
     private FieldInfo[] _fields;
@@ -41,9 +51,9 @@ public class VxsUserData : Indexable
         
         cache = VxsReflection._getCache(type, false);
 
-        _fields = cache.fieldInfos;
-        _properties = cache.propertyInfos;
-        _methods = cache.methodInfos;
+        _fields = cache.FieldInfos;
+        _properties = cache.PropertyInfos;
+        _methods = cache.MethodInfos;
     }
 
     public static VxsUserData Create(object ReferenceObject)
@@ -105,6 +115,12 @@ public class VxsUserData : Indexable
                 return VoxValue.Create(action);
             }
         }
+
+        if (ReferenceObject is IVxsIndexable vxsIndexable)
+        {
+            var value = vxsIndexable.Get(key);
+            return Convert(value);
+        }
         
         throw new KeyNotFoundException($"{keyStr} is not a valid member of {ReferenceObject.GetType().Name}");
     }
@@ -139,6 +155,7 @@ public class VxsUserData : Indexable
         var fields = cache.GetFieldInfos(keyStr);
         if (fields.Length > 0)
         {
+            if (fields[0].GetCustomAttribute<VxsReadOnly>() != null) throw new ReadOnlyException($"Member '{keyStr}' is read-only!'");
             fields[0].SetValue(ReferenceObject, Convert(value));
             return;
         }
@@ -146,6 +163,7 @@ public class VxsUserData : Indexable
         var properties = cache.GetPropertyInfos(keyStr);
         if (properties.Length > 0)
         {
+            if (properties[0].GetCustomAttribute<VxsReadOnly>() != null) throw new ReadOnlyException($"Member '{keyStr}' is read-only!'");
             properties[0].SetValue(ReferenceObject, Convert(value));
             return;
         }

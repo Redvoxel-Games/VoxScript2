@@ -72,7 +72,7 @@ internal class InlineClosureStore
     }
 }
 
-internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruction[]>
+internal class VxsBuilder(ScriptGlobals globals, Dictionary<string, VoxValue> reservedConstants) : VoxScriptBaseVisitor<Instruction[]>
 {
     private List<VoxValue> _constants => _currentScope.Constants;
     private List<string> _localNames => _currentScope.Locals;
@@ -94,6 +94,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
     public BlockResult VisitBlockSelf(BlockContext context, string[]? locals=null)
     {
         _currentScope = new CompilerScope(_currentScope);
+        
         locals ??= [];
         foreach (var localName in locals)
         {
@@ -101,6 +102,17 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         }
         
         List<Instruction> instructions = [];
+        
+        foreach (var reserved in reservedConstants)
+        {
+            var cSlot = _getConstantSlot(reserved.Value);
+            var lSlot = _getLocalSlot(reserved.Key);
+            
+            instructions.AddRange([
+                new(OpCode.Load_Constant, cSlot),
+                new(OpCode.Store_Local, lSlot)
+            ]);
+        }
         
         foreach (var statementCtx in context.statement())
         {

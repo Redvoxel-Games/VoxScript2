@@ -9,6 +9,11 @@ public sealed class FunctionPrototype(Instruction[] instructions, VoxValue[] con
     public readonly VoxValue[] Constants = constants;
     public readonly uint ParameterCount = parameterCount;
     public readonly uint LocalCount = localCount;
+    
+    public VoxValue[] Invoke(VxsRuntime runtime, VoxValue[] arguments)
+    {
+        return runtime.RunFunction(this, arguments);
+    }
 }
 
 public sealed class NativeFunction(Func<VoxValue[], VoxValue[]> function)
