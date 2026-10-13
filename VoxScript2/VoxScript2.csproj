@@ -5,7 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>VoxScript</RootNamespace>
-        <Version>2.0.0</Version>
+        <Version>2.0.1</Version>
         <Authors>Redvoxel Games</Authors>
         <RepositoryUrl>https://github.com/Redvoxel-Games/VoxScript2</RepositoryUrl>
         <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
@@ -13,6 +13,7 @@
         <Title>VoxScript2</Title>
         <Description>Easily embeddable scripting language</Description>
         <PackageTags>Language, Scripting</PackageTags>
+        <PackageReleaseNotes>Improved interop capabilities</PackageReleaseNotes>
     </PropertyGroup>
 
     <ItemGroup>
