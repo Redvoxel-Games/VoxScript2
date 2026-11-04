@@ -324,12 +324,19 @@ internal class VxsBuilder(VxsRuntime runtime) : VoxScriptBaseVisitor<Instruction
 
     public override Instruction[] VisitFunc_define(Func_defineContext context)
     {
+        return VisitFuncSelf(context).Fetch;
+    }
+
+    private record FuncDefineResult(Instruction[] Fetch, FunctionPrototype Prototype);
+    private FuncDefineResult VisitFuncSelf(Func_defineContext context, bool isMethod=false, bool floating=false)
+    {
         var init = context.ID().GetText();
         
         List<Instruction> fetchInstructions = [];
 
         uint paramCount = 0;
         List<string> paramNames = [];
+        if (isMethod) paramNames.Add("self");
         var paramsCtx = context.function_params();
         foreach (var instCtx in paramsCtx.var_inst())
         {
@@ -340,16 +347,19 @@ internal class VxsBuilder(VxsRuntime runtime) : VoxScriptBaseVisitor<Instruction
         var result = VisitBlockSelf(context.block(), paramNames.ToArray());
 
         FunctionPrototype func = new FunctionPrototype(result.Instructions, result.Scope.Constants.ToArray(), paramCount, (uint)result.Scope.Locals.Count);
-        
+
         var constantSlot = _getConstantSlot(VoxValue.Create(func));
         fetchInstructions.Add(new(OpCode.Load_Constant, constantSlot));
         
         fetchInstructions.Add(new(OpCode.Mark_Ownership));
-        
-        var localSlot = _getLocalSlot(init);
-        fetchInstructions.Add(new(OpCode.Store_Local, localSlot));
-        
-        return fetchInstructions.ToArray();
+
+        if (!floating)
+        {
+            var localSlot = _getLocalSlot(init);
+            fetchInstructions.Add(new(OpCode.Store_Local, localSlot));
+        }
+
+        return new(fetchInstructions.ToArray(), func);
     }
 
     public override Instruction[] VisitLambda(LambdaContext context)
@@ -579,40 +589,41 @@ internal class VxsBuilder(VxsRuntime runtime) : VoxScriptBaseVisitor<Instruction
 
         var identifier = context.identifier();
         var idInstr = VisitIdentifierSelf(identifier, out var keyInstr, true);
-        var startVal = VisitIdentifierSelf(identifier, out _);
+        
+        var mode = context.ASSIGNMENT().GetText();
 
-        var expression = VisitExpression(context.expression());
+        var expr = VisitExpression(context.expression());
 
-        Instruction[] arith = [
-            new(context.ASSIGNMENT().GetText() switch
-            {
-                "+=" => OpCode.Add,
-                "-=" => OpCode.Sub,
-                "*=" => OpCode.Mul,
-                "/=" => OpCode.Div,
-                
-                "^=" => OpCode.Pow,
-                "%=" => OpCode.Mod,
-                
-                _ => throw new NotImplementedException($"{context.ASSIGNMENT().GetText()} not implemented")
-            })
-        ];
+        var arithInst = new Instruction(mode switch
+        {
+            "+=" => OpCode.Add,
+            "-=" => OpCode.Sub,
+            "*=" => OpCode.Mul,
+            "/=" => OpCode.Div,
+            "^=" => OpCode.Pow,
+            "%=" => OpCode.Mod,
+            _ => throw new ArgumentOutOfRangeException()
+        });
         
         if (idInstr.Length == 0)
         {
             var store = _getStoreForVariable(identifier.ID().GetText());
-            all.AddRange(startVal);
-            all.AddRange(expression);
-            all.AddRange(arith);
+            all.AddRange(_getFetchForVariable(identifier.ID().GetText()));
+            all.AddRange(expr);
+            all.Add(arithInst);
             all.AddRange(store);
         }
         else
         {
+            var get = VisitIdentifierSelf(identifier, out _);
+            
             all.AddRange(idInstr);
             all.AddRange(keyInstr);
-            all.AddRange(startVal);
-            all.AddRange(expression);
-            all.AddRange(arith);
+            
+            all.AddRange(get);
+            all.AddRange(expr);
+            all.Add(arithInst);
+            
             all.AddRange([
                 new(OpCode.Set_Key)
             ]);
@@ -1000,7 +1011,7 @@ internal class VxsBuilder(VxsRuntime runtime) : VoxScriptBaseVisitor<Instruction
         
         return all.ToArray();
     }
-    
+
     private enum MemberType { Property, Method }
     public override Instruction[] VisitClass_define(Class_defineContext context)
     {
