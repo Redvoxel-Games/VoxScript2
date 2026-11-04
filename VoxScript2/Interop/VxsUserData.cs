@@ -51,7 +51,7 @@ public class VxsUserData : Indexable
         return UserDataCache.Get(ReferenceObject);
     }
     
-    public override VoxValue Get(VoxValue key)
+    public VoxValue Get(VoxValue key, VxsThread thread)
     {
         var keyStr = key.ToString();
 
@@ -109,7 +109,7 @@ public class VxsUserData : Indexable
         throw new KeyNotFoundException($"{keyStr} is not a valid member of {ReferenceObject.GetType().Name}");
     }
 
-    public override void Set(VoxValue key, VoxValue value)
+    public void Set(VoxValue key, VoxValue value, VxsThread thread)
     {
         var keyStr = key.ToString();
 
@@ -153,14 +153,14 @@ public class VxsUserData : Indexable
         throw new KeyNotFoundException($"{keyStr} is not a valid member of {ReferenceObject.GetType().Name}");
     }
 
-    public override uint Length { get; }
+    public uint Length { get; }
     
-    public override VoxValue GetKeyAt(uint indexNumber)
+    public  VoxValue GetKeyAt(uint indexNumber)
     {
         throw new NotImplementedException();
     }
 
-    public override VoxValue GetValueAt(uint indexNumber)
+    public VoxValue GetValueAt(uint indexNumber)
     {
         throw new NotImplementedException();
     }

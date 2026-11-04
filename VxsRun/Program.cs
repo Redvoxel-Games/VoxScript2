@@ -32,11 +32,11 @@ class Program
         
         var runtime = new VxsRuntime(globals);
         
-        globals.SetGlobal("require", VoxValue.Create(args =>
+        globals.SetGlobal("require", VoxValue.Create(info =>
         {
-            if (args.Length == 0) throw new Exception("No path provided.");
+            if (info.Arguments.Length == 0) throw new Exception("No path provided.");
             
-            var pathVal = args[0];
+            var pathVal = info.Arguments[0];
             
             if (pathVal.Type != ValueType.String) throw new Exception("Invalid path provided.");
             
@@ -60,12 +60,12 @@ class Program
             
             string requiredSource = File.ReadAllText(finalPath);
             
-            var program = VxsCompiler.CompileScript(requiredSource, globals);
+            var program = VxsCompiler.CompileScript(requiredSource, runtime);
             
             return runtime.RunProgram(program);
         }));
         
-        var program = VxsCompiler.CompileScript(source, globals);
+        var program = VxsCompiler.CompileScript(source, runtime);
         
         var returns = runtime.RunProgram(program);
 

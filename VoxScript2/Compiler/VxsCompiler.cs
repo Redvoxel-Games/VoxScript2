@@ -1,11 +1,12 @@
 ﻿using Antlr4.Runtime;
 using VoxScript.Interop;
+using VoxScript.Runtime;
 
 namespace VoxScript.Compiler;
 
 public static class VxsCompiler
 {
-    public static VxsProgram CompileScript(string source, ScriptGlobals globals)
+    public static VxsProgram CompileScript(string source, VxsRuntime runtime)
     {
         var inputStream = new AntlrInputStream(source);
 
@@ -16,7 +17,7 @@ public static class VxsCompiler
 
         var tree = parser.program();
         
-        var builder = new VxsBuilder(globals);
+        var builder = new VxsBuilder(runtime);
         
         return builder.Build(tree);
     }

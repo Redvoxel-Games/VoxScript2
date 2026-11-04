@@ -1,57 +1,155 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Data;
+using System.Runtime.CompilerServices;
 
 namespace VoxScript.Runtime;
 
-public abstract class Indexable
+public interface Indexable
 {
-    public abstract VoxValue Get(VoxValue key);
-    public abstract void Set(VoxValue key, VoxValue value);
-    public abstract uint Length { get; }
-    public abstract VoxValue GetKeyAt(uint indexNumber);
-    public abstract VoxValue GetValueAt(uint indexNumber);
+    public VoxValue Get(VoxValue key, VxsThread? thread);
+    public void Set(VoxValue key, VoxValue value, VxsThread? thread);
+    public uint Length { get; }
+    public VoxValue GetKeyAt(uint indexNumber);
+    public VoxValue GetValueAt(uint indexNumber);
 }
 
-public sealed class Table : Indexable, IEnumerable<KeyValuePair<VoxValue, VoxValue>>
+public struct Table : Indexable, IEnumerable<KeyValuePair<VoxValue, VoxValue>>
 {
-    public bool frozen = false;
-    
-    private readonly Dictionary<VoxValue, VoxValue> _values = [];
+    public bool Frozen = false;
 
-    public override VoxValue Get(VoxValue key)
+    private VoxValue[] _keys = new VoxValue[1];
+    private VoxValue[] _values = new VoxValue[1];
+
+    public Table Copy()
     {
-        return _values.TryGetValue(key, out var value) ? value : VoxValue.Null;
+        if (Frozen) return this;
+        
+        Table table = new Table(_keys.Length);
+
+        for (var i = 0; i < _keys.Length; i++)
+        {
+            table.Set(_keys[i], _values[i], null);
+        }
+        
+        return table;
+    }
+    
+    private bool _initialized = false;
+
+    public Table(int reserved = 1)
+    {
+        _keys = new VoxValue[reserved];
+        _values = new VoxValue[reserved];
+        
+        for (var i = 0; i < reserved; i++)
+        {
+            _keys[i] = VoxValue.Null;
+            _values[i] = VoxValue.Null;
+        }
     }
 
-    public override void Set(VoxValue key, VoxValue value)
+    private void ensureInitialized()
     {
-        if (frozen) throw new InvalidOperationException("Table is frozen!");
+        if (!_initialized)
+        {
+            _initialized = true;
+            
+            _keys = new VoxValue[1];
+            _values = new VoxValue[1];
+        }
+    }
+
+    public VoxValue Get(VoxValue key, VxsThread? thread)
+    {
+        ensureInitialized();
+        
+        return _keys.Contains(key) ? _values[_keys.IndexOf(key)] : VoxValue.Null;
+    }
+
+    public void Set(VoxValue key, VoxValue value, VxsThread? thread)
+    {
+        if (Frozen) throw new ReadOnlyException("Table is frozen!");
+        
+        ensureInitialized();
+        
+        var index = _keys.IndexOf(key);
         
         if (value.Type == ValueType.Null)
         {
-            _values.Remove(key);
+            if (index >= 0)
+            {
+                _values[index] = VoxValue.Null;
+                _keys[index] = VoxValue.Null;
+            }
         }
         else
         {
-            _values[key] = value;
+            if (index >= 0)
+            {
+                _values[index] = value;
+            }
+            else
+            {
+                bool tableIsFull = true;
+                int clearIndex = -1;
+                for (var i = 0; i < _keys.Length; i++)
+                {
+                    if (_keys[i].Type == ValueType.Null)
+                    {
+                        tableIsFull = false;
+                        clearIndex = i;
+                        break;
+                    }
+                }
+
+                if (tableIsFull)
+                {
+                    // Create new arrays with double the size
+                    VoxValue[] newKeys = new VoxValue[_keys.Length * 2];
+                    VoxValue[] newValues = new VoxValue[_keys.Length * 2];
+                    
+                    Array.Copy(_keys, newKeys, _keys.Length);
+                    Array.Copy(_values, newValues, _values.Length);
+                    
+                    newKeys[_keys.Length] = key;
+                    newValues[_keys.Length] = value;
+                    
+                    _keys = newKeys;
+                    _values = newValues;
+                }
+                else
+                {
+                    _keys[clearIndex] = key;
+                    _values[clearIndex] = value;
+                }
+            }
         }
     }
 
-    public override uint Length => (uint)_values.Count;
+    public uint Length => (uint)_values.Length;
 
-    public override VoxValue GetKeyAt(uint index)
+    public VoxValue GetKeyAt(uint index)
     {
-        return _values.Keys.ToArray()[index];
+        return _keys[index];
     }
 
-    public override VoxValue GetValueAt(uint index)
+    public VoxValue GetValueAt(uint index)
     {
-        return _values.Values.ToArray()[index];
+        return _values[index];
     }
 
     public IEnumerator<KeyValuePair<VoxValue, VoxValue>> GetEnumerator()
     {
-        return _values.GetEnumerator();
+        KeyValuePair<VoxValue, VoxValue>[] pairs = new KeyValuePair<VoxValue, VoxValue>[_values.Length];
+
+        for (var i = 0; i < _values.Length; i++)
+        {
+            pairs[i] = new KeyValuePair<VoxValue, VoxValue>(_keys[i], _values[i]);
+        }
+
+        return (IEnumerator<KeyValuePair<VoxValue, VoxValue>>)pairs.GetEnumerator();
     }
 
     IEnumerator IEnumerable.GetEnumerator()

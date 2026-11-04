@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-// Generated from VoxScript2.g4 by ANTLR 4.13.2
+// Generated from VoxScript.g4 by ANTLR 4.13.2
 
 // Unreachable code detected
 #pragma warning disable 0162
@@ -131,6 +131,54 @@ public partial class VoxScriptBaseListener : IVoxScriptListener {
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	public virtual void ExitVal_increment([NotNull] VoxScriptParser.Val_incrementContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="VoxScriptParser.class_define"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterClass_define([NotNull] VoxScriptParser.Class_defineContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="VoxScriptParser.class_define"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitClass_define([NotNull] VoxScriptParser.Class_defineContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="VoxScriptParser.class_member"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterClass_member([NotNull] VoxScriptParser.Class_memberContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="VoxScriptParser.class_member"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitClass_member([NotNull] VoxScriptParser.Class_memberContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="VoxScriptParser.class_property"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterClass_property([NotNull] VoxScriptParser.Class_propertyContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="VoxScriptParser.class_property"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitClass_property([NotNull] VoxScriptParser.Class_propertyContext context) { }
+	/// <summary>
+	/// Enter a parse tree produced by <see cref="VoxScriptParser.class_constructor"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void EnterClass_constructor([NotNull] VoxScriptParser.Class_constructorContext context) { }
+	/// <summary>
+	/// Exit a parse tree produced by <see cref="VoxScriptParser.class_constructor"/>.
+	/// <para>The default implementation does nothing.</para>
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	public virtual void ExitClass_constructor([NotNull] VoxScriptParser.Class_constructorContext context) { }
 	/// <summary>
 	/// Enter a parse tree produced by <see cref="VoxScriptParser.func_define"/>.
 	/// <para>The default implementation does nothing.</para>

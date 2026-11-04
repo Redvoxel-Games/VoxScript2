@@ -72,7 +72,7 @@ internal class InlineClosureStore
     }
 }
 
-internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruction[]>
+internal class VxsBuilder(VxsRuntime runtime) : VoxScriptBaseVisitor<Instruction[]>
 {
     private List<VoxValue> _constants => _currentScope.Constants;
     private List<string> _localNames => _currentScope.Locals;
@@ -84,7 +84,12 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         var blockCtx = treeRoot.block();
 
         var result = VisitBlockSelf(blockCtx);
-        VxsProgram program = new VxsProgram { _instructions = result.Instructions, _constants = result.Scope.Constants.ToArray(), _localCount = (uint)result.Scope.Locals.Count };
+        var program = new VxsProgram
+        {
+            Instructions = result.Instructions,
+            Constants = result.Scope.Constants.ToArray(),
+            LocalCount = (uint)result.Scope.Locals.Count,
+        };
         
         return program;
     }
@@ -95,9 +100,10 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
     {
         _currentScope = new CompilerScope(_currentScope);
         locals ??= [];
+        
         foreach (var localName in locals)
         {
-            _getLocalSlot(localName); // Used to reserve local slots for functions
+            _getLocalSlot(localName); // Reserve local slot
         }
         
         List<Instruction> instructions = [];
@@ -114,7 +120,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         return new(instructions.ToArray(), scope);
     }
 
-    private bool _hasGlobal(string globalName) => globals._hasGlobal(globalName);
+    private bool _hasGlobal(string globalName) => runtime.Globals._hasGlobal(globalName);
 
     private uint _getLocalSlot(string localName)
     {
@@ -318,12 +324,19 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
 
     public override Instruction[] VisitFunc_define(Func_defineContext context)
     {
+        return VisitFuncSelf(context).Fetch;
+    }
+
+    private record FuncDefineResult(Instruction[] Fetch, FunctionPrototype Prototype);
+    private FuncDefineResult VisitFuncSelf(Func_defineContext context, bool isMethod=false, bool floating=false)
+    {
         var init = context.ID().GetText();
         
         List<Instruction> fetchInstructions = [];
 
         uint paramCount = 0;
         List<string> paramNames = [];
+        if (isMethod) paramNames.Add("self");
         var paramsCtx = context.function_params();
         foreach (var instCtx in paramsCtx.var_inst())
         {
@@ -333,17 +346,20 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
 
         var result = VisitBlockSelf(context.block(), paramNames.ToArray());
 
-        FunctionPrototype func = new FunctionPrototype(result.Instructions, result.Scope.Constants.ToArray(), paramCount, (uint)result.Scope.Locals.Count);
-        
+        FunctionPrototype func = new FunctionPrototype(result.Instructions, result.Scope.Constants.ToArray(), paramCount, (uint)result.Scope.Locals.Count, isMethod);
+
         var constantSlot = _getConstantSlot(VoxValue.Create(func));
         fetchInstructions.Add(new(OpCode.Load_Constant, constantSlot));
         
         fetchInstructions.Add(new(OpCode.Mark_Ownership));
-        
-        var localSlot = _getLocalSlot(init);
-        fetchInstructions.Add(new(OpCode.Store_Local, localSlot));
-        
-        return fetchInstructions.ToArray();
+
+        if (!floating)
+        {
+            var localSlot = _getLocalSlot(init);
+            fetchInstructions.Add(new(OpCode.Store_Local, localSlot));
+        }
+
+        return new(fetchInstructions.ToArray(), func);
     }
 
     public override Instruction[] VisitLambda(LambdaContext context)
@@ -361,7 +377,7 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
 
         var result = VisitBlockSelf(context.block(), paramNames.ToArray());
 
-        FunctionPrototype func = new FunctionPrototype(result.Instructions, result.Scope.Constants.ToArray(), paramCount, (uint)result.Scope.Locals.Count);
+        FunctionPrototype func = new FunctionPrototype(result.Instructions, result.Scope.Constants.ToArray(), paramCount, (uint)result.Scope.Locals.Count, false);
         
         var constantSlot = _getConstantSlot(VoxValue.Create(func));
         fetchInstructions.Add(new(OpCode.Load_Constant, constantSlot));
@@ -559,6 +575,55 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
                 new(OpCode.Load_Constant, constantSlot),
                 new(OpCode.Add)
             ]);
+            all.AddRange([
+                new(OpCode.Set_Key)
+            ]);
+        }
+        
+        return all.ToArray();
+    }
+
+    public override Instruction[] VisitArith_assign(Arith_assignContext context)
+    {
+        List<Instruction> all = [];
+
+        var identifier = context.identifier();
+        var idInstr = VisitIdentifierSelf(identifier, out var keyInstr, true);
+        
+        var mode = context.ASSIGNMENT().GetText();
+
+        var expr = VisitExpression(context.expression());
+
+        var arithInst = new Instruction(mode switch
+        {
+            "+=" => OpCode.Add,
+            "-=" => OpCode.Sub,
+            "*=" => OpCode.Mul,
+            "/=" => OpCode.Div,
+            "^=" => OpCode.Pow,
+            "%=" => OpCode.Mod,
+            _ => throw new ArgumentOutOfRangeException()
+        });
+        
+        if (idInstr.Length == 0)
+        {
+            var store = _getStoreForVariable(identifier.ID().GetText());
+            all.AddRange(_getFetchForVariable(identifier.ID().GetText()));
+            all.AddRange(expr);
+            all.Add(arithInst);
+            all.AddRange(store);
+        }
+        else
+        {
+            var get = VisitIdentifierSelf(identifier, out _);
+            
+            all.AddRange(idInstr);
+            all.AddRange(keyInstr);
+            
+            all.AddRange(get);
+            all.AddRange(expr);
+            all.Add(arithInst);
+            
             all.AddRange([
                 new(OpCode.Set_Key)
             ]);
@@ -945,5 +1010,100 @@ internal class VxsBuilder(ScriptGlobals globals) : VoxScriptBaseVisitor<Instruct
         ]);
         
         return all.ToArray();
+    }
+
+    private enum MemberType { Property, Method }
+    public override Instruction[] VisitClass_define(Class_defineContext context)
+    {
+        var className = context.ID().GetText();
+        var members = context.class_member();
+        
+        var localSlot = _getLocalSlot(className);
+        
+        FunctionPrototype? constructor = null;
+        List<Instruction> assemblyInstructions = [];
+        Dictionary<string, (Instruction[], MemberType, bool)> memberInstructions = [];
+
+        foreach (var member in members)
+        {
+            var isStatic = member.STATIC() != null;
+            if (member.class_constructor() != null)
+            {
+                if (constructor != null) throw new Exception("Duplicate constructor");
+                
+                var constContext = member.class_constructor();
+                
+                uint paramCount = 0;
+                List<string> paramNames = ["self"];
+                var paramsCtx = constContext.function_params();
+                foreach (var instCtx in paramsCtx.var_inst())
+                {
+                    paramCount++;
+                    paramNames.Add(instCtx.ID().GetText());
+                }
+                
+                var result = VisitBlockSelf(constContext.block(), paramNames.ToArray());
+                
+                constructor = new FunctionPrototype(result.Instructions, result.Scope.Constants.ToArray(), paramCount, (uint)result.Scope.Locals.Count, false);
+            }
+            else if (member.func_define() != null)
+            {
+                var funcContext = member.func_define();
+                var name = funcContext.ID().GetText();
+
+                var result = VisitFuncSelf(funcContext, !isStatic, true);
+                
+                memberInstructions[name] = (result.Fetch, MemberType.Method, isStatic);
+            }
+            else if (member.class_property() != null)
+            {
+                var propContext = member.class_property();
+                var name = propContext.var_inst().ID().GetText();
+                
+                var expression = VisitExpression(propContext.expression());
+                
+                memberInstructions[name] = (expression, MemberType.Property, isStatic);
+            }
+        }
+        
+        var nameConstant = _getConstantSlot(VoxValue.Create(className));
+        
+        assemblyInstructions.AddRange([
+            new(OpCode.Load_Constant, nameConstant),
+            new(OpCode.Create_Class),
+        ]);
+
+        if (constructor != null)
+        {
+            var constructorConstant = _getConstantSlot(VoxValue.Create(constructor));
+            assemblyInstructions.AddRange([
+                new(OpCode.Load_Constant, constructorConstant),
+                new(OpCode.Mark_Ownership),
+                new(OpCode.Set_Constructor),
+            ]);
+        }
+
+        foreach (var pair in memberInstructions)
+        {
+            var info = pair.Value;
+            assemblyInstructions.AddRange(info.Item1);
+            
+            var memberNameConst = _getConstantSlot(VoxValue.Create(pair.Key));
+            assemblyInstructions.AddRange([
+                new(OpCode.Load_Constant, memberNameConst),
+                new(info.Item2 switch
+                {
+                    MemberType.Property => info.Item3 ? OpCode.Set_Static_Property : OpCode.Set_Instance_Property,
+                    MemberType.Method => info.Item3 ? OpCode.Set_Static_Method : OpCode.Set_Instance_Method
+                })
+            ]);
+        }
+        
+        assemblyInstructions.AddRange([
+            new(OpCode.Finalize_Class),
+            new(OpCode.Store_Local, localSlot)
+        ]);
+        
+        return assemblyInstructions.ToArray();
     }
 }

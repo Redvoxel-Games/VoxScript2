@@ -12,7 +12,7 @@ Directly inspired by [Luau](https://www.luau.org/).
 
 ### INCOMPLETE
 
-Currently missing coroutines/threads.
+Thread support is only partial, each program get it's own thread but spawning threads from functions is not currently possible.
 
 ## Easy to set up
 

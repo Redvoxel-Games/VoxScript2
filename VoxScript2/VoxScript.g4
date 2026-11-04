@@ -19,6 +19,7 @@ statement
     | cont_foreach
     | cont_if
     | print
+    | class_define
     ;
     
 print: 'print' expression;
@@ -27,6 +28,14 @@ var_define: VAR var_inst (',' var_inst)* '=' expression;
 val_assign: identifier '=' expression;
 arith_assign: identifier ASSIGNMENT expression;
 val_increment: identifier (INCREMENT | DECREMENT);
+
+class_define: 'class' ID
+    LEFT_CURLY
+        (class_member SEMICOLON?)*
+    RIGHT_CURLY;
+class_member: (STATIC? (class_property | func_define)) | class_constructor;
+class_property: var_inst ('=' expression)?;
+class_constructor: 'constructor' function_params LEFT_CURLY block RIGHT_CURLY;
 
 func_define: FUNC ID function_params type_annotation? LEFT_CURLY block RIGHT_CURLY;
 func_call: identifier function_postfix;
@@ -42,7 +51,7 @@ cont_break: 'break';
 cont_if: 'if' LEFT_PAREN expression RIGHT_PAREN (statement | LEFT_CURLY block RIGHT_CURLY) cont_else?;
 cont_else: 'else' (statement | LEFT_CURLY block RIGHT_CURLY);
 
-type_annotation: ':' ID;
+type_annotation: ':' ID '?'?;
 
 expression
     : '(' paren=expression ')'
@@ -75,7 +84,7 @@ table_key: ID | expression;
     
 lambda: function_params '->' (LEFT_CURLY block RIGHT_CURLY | statement);
     
-identifier: ID postfix*;
+identifier: (ID postfix*);
 postfix: id_postfix | expression_postfix | function_postfix;
 id_postfix: '.' ID;
 expression_postfix: LEFT_BRACE expression RIGHT_BRACE;
@@ -88,6 +97,8 @@ var_inst: ID type_annotation? | DISCARD;
 // Keywords
 VAR: 'var';
 FUNC: 'func';
+CLASS: 'class';
+STATIC: 'static';
 
 FOR: 'for';
 FOREACH: 'foreach';
@@ -97,6 +108,8 @@ CONTINUE: 'continue';
 BREAK: 'break';
 IF: 'if';
 ELSE: 'else';
+
+PRINT: 'print';
 
 // Primitives
 NUMBER: MINUS? ([1-9] [0-9]* | [0-9]) ('.' [0-9]+)?;
@@ -124,6 +137,7 @@ SEMICOLON: ';';
 COLON: ':';
 EXCLAMATION: '!';
 QUOTATION: '"';
+QUESTION: '?';
 LEFT_PAREN: '(';
 RIGHT_PAREN: ')';
 LEFT_BRACE: '[';

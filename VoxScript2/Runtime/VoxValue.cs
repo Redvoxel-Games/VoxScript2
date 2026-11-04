@@ -33,16 +33,29 @@ public readonly struct VoxValue() : IEquatable<VoxValue>
 
     public static VoxValue Null => default;
     
+    public bool IsNull => Type == ValueType.Null;
+    
     public static VoxValue Create(double number) => new() { Type = ValueType.Number, Number = number };
     public static VoxValue Create(string text) => new() { Type = ValueType.String, String = text };
     public static VoxValue Create(bool boolean) => new() { Type = ValueType.Bool, Bool = boolean };
     public static VoxValue Create(Indexable table) => new() { Type = ValueType.Table, Reference = table };
     public static VoxValue Create(FunctionPrototype function) => new() { Type = ValueType.Function, Reference = function };
-    public static VoxValue Create(Func<VoxValue[], VoxValue[]> function) => new() { Type = ValueType.Function, Reference = new NativeFunction(function) };
+    public static VoxValue Create(Func<FunctionInvokeInfo, VoxValue[]> function) => new() { Type = ValueType.Function, Reference = new NativeFunction(function) };
     public static VoxValue Create(Delegate @delegate) => new() { Type = ValueType.Function, Reference = @delegate };
+    public static VoxValue Create(InstancedFunctionPrototype function) => new() { Type = ValueType.Function, Reference = function };
     
-    public override string ToString()
+    public string AsString(VxsThread? thread)
     {
+        if (Type == ValueType.Table)
+        {
+            if (Reference is VxsObject obj && thread != null)
+            {
+                return obj.AsString(thread);
+            }
+
+            return "[TABLE]";
+        }
+        
         return Type switch
         {
             ValueType.String => String,
@@ -55,6 +68,8 @@ public readonly struct VoxValue() : IEquatable<VoxValue>
             _ => throw new ArgumentOutOfRangeException()
         };
     }
+    
+    public override string ToString() => AsString(null);
 
     public override bool Equals(object? obj)
     {

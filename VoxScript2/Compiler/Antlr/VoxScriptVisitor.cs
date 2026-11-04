@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-// Generated from VoxScript2.g4 by ANTLR 4.13.2
+// Generated from VoxScript.g4 by ANTLR 4.13.2
 
 // Unreachable code detected
 #pragma warning disable 0162
@@ -79,6 +79,30 @@ public interface IVoxScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitVal_increment([NotNull] VoxScriptParser.Val_incrementContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="VoxScriptParser.class_define"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitClass_define([NotNull] VoxScriptParser.Class_defineContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="VoxScriptParser.class_member"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitClass_member([NotNull] VoxScriptParser.Class_memberContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="VoxScriptParser.class_property"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitClass_property([NotNull] VoxScriptParser.Class_propertyContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="VoxScriptParser.class_constructor"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitClass_constructor([NotNull] VoxScriptParser.Class_constructorContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="VoxScriptParser.func_define"/>.
 	/// </summary>

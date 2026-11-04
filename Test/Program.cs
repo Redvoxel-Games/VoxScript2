@@ -1,76 +1,62 @@
-﻿using VoxScript.Compiler;
+﻿using System.Reflection;
+using VoxScript.Compiler;
 using VoxScript.Interop;
 
 namespace Test;
 
 using VoxScript.Runtime;
 
-public class UserDataTest
-{
-    [ExposeToVxs] public double X = 3.14159;
-    [ExposeToVxs] public VoxValue[] someFunc(VoxValue[] arr)
-    {
-        Console.WriteLine("Got: " + arr.Length);
-        
-        return [VoxValue.Create(21)];
-    }
-    
-    [ExposeToVxs] public UserDataTest2 otherData = new UserDataTest2();
-}
-
-public class UserDataTest2
-{
-    [ExposeToVxs] public double Y = 42;
-}
-
 class Program
 {
     static void Main(string[] args)
     {
-        // var thing = Console.ReadLine(); // Halt until input is given
-
-        var source =
-            """
-            print data.X
-            data.X = 2
-            print data.X
-            
-            print data.someFunc("Hi!")
-            
-            print data.otherData.Y
-            data.otherData = overwriteTest
-            print data.otherData.Y
-            """;
-
         ScriptGlobals globals = ScriptGlobals.Create()
             .AddMathLibrary()
             .AddTableLibrary()
             .AddStringLibrary()
             .Build();
         
-        var dataTest = new UserDataTest();
-        
-        globals.SetGlobal("data", VoxValue.Create(VxsUserData.Create(dataTest)));
-        globals.SetGlobal("overwriteTest", VoxValue.Create(VxsUserData.Create(new UserDataTest2() {Y=-21})));
-
-        var program = VxsCompiler.CompileScript(source, globals);
-
-        Console.WriteLine("Constants:");
-        for (var i = 0; i < program._constants.Length; i++)
+        VxsRuntime runtime = new VxsRuntime(globals);
+        runtime.OnPrint += (value, thread) =>
         {
-            Console.WriteLine($"{i}: {program._constants[i]}");
-        }
+            Console.WriteLine(value.AsString(thread));
+        };
+        Test.BasicRuntime = runtime;
 
-        Console.WriteLine("\nInstructions:");
-        for (var i=0; i<program._instructions.Length; i++)
+        var testType = typeof(Test);
+        var assembly = Assembly.GetExecutingAssembly();
+
+        List<Test> tests = [];
+        
+        foreach (var type in assembly.GetTypes())
         {
-            var instruction = program._instructions[i];
-            Console.WriteLine($"{i}: " + instruction.OpCode + (instruction.hasOperand ? " " + instruction.Operand : ""));
+            if (type.IsSubclassOf(testType) && !type.IsAbstract)
+            {
+                var test = (Test)Activator.CreateInstance(type)!;
+                tests.Add(test);
+            }
         }
         
-        Console.WriteLine("\nRunning program:\n");
+        Console.WriteLine($"Running tests... ({tests.Count} total)");
+
+        int errors = 0;
+        int failures = 0;
+        int successes = 0;
+        foreach (var test in tests)
+        {
+            Console.Write($"Running test '{test.Name}'...");
+            var result = test.Execute();
+            Console.Write($" {result}\n");
+
+            switch (result.Result)
+            {
+                case TestResultType.Success: successes++; break;
+                case TestResultType.Failure: failures++;  break;
+                case TestResultType.Error:   errors++;    break;
+            }
+        }
         
-        var runtime = new VxsRuntime(globals);
-        runtime.RunProgram(program);
+        Console.WriteLine("Tests complete!");
+        Console.WriteLine($"{successes} successes, {failures} failures, {errors} errors.");
     }
 }

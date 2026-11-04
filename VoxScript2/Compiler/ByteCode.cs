@@ -2,7 +2,7 @@
 
 namespace VoxScript.Compiler;
 
-public enum OpCode : uint
+public enum OpCode : ushort
 {
     // Stack
     Pop = 001,
@@ -69,6 +69,16 @@ public enum OpCode : uint
     Loop_Check_Marker = 501,
     Loop_Exit_Marker = 502,
     
+    // Classes
+    Create_Class = 601,
+    Set_Constructor = 602,
+    Set_Static_Property = 603,
+    Set_Instance_Property = 604,
+    Set_Static_Method = 605,
+    Set_Instance_Method = 606,
+    
+    Finalize_Class = 699,
+    
     // Misc
     Print = 901,
 }
@@ -83,7 +93,9 @@ public readonly struct Instruction(OpCode opcode, uint? operand=null, uint? seco
 
 public sealed class VxsProgram
 {
-    public Instruction[] _instructions;
-    public VoxValue[] _constants;
-    public uint _localCount;
+    public Instruction[] Instructions;
+    public VoxValue[] Constants;
+    public uint LocalCount;
+
+    public object? UserObject;
 }
