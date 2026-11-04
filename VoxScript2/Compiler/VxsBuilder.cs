@@ -1000,4 +1000,99 @@ internal class VxsBuilder(VxsRuntime runtime) : VoxScriptBaseVisitor<Instruction
         
         return all.ToArray();
     }
+    
+    private enum MemberType { Property, Method }
+    public override Instruction[] VisitClass_define(Class_defineContext context)
+    {
+        var className = context.ID().GetText();
+        var members = context.class_member();
+        
+        var localSlot = _getLocalSlot(className);
+        
+        FunctionPrototype? constructor = null;
+        List<Instruction> assemblyInstructions = [];
+        Dictionary<string, (Instruction[], MemberType, bool)> memberInstructions = [];
+
+        foreach (var member in members)
+        {
+            var isStatic = member.STATIC() != null;
+            if (member.class_constructor() != null)
+            {
+                if (constructor != null) throw new Exception("Duplicate constructor");
+                
+                var constContext = member.class_constructor();
+                
+                uint paramCount = 0;
+                List<string> paramNames = ["self"];
+                var paramsCtx = constContext.function_params();
+                foreach (var instCtx in paramsCtx.var_inst())
+                {
+                    paramCount++;
+                    paramNames.Add(instCtx.ID().GetText());
+                }
+                
+                var result = VisitBlockSelf(constContext.block(), paramNames.ToArray());
+                
+                constructor = new FunctionPrototype(result.Instructions, result.Scope.Constants.ToArray(), paramCount, (uint)result.Scope.Locals.Count);
+            }
+            else if (member.func_define() != null)
+            {
+                var funcContext = member.func_define();
+                var name = funcContext.ID().GetText();
+
+                var result = VisitFuncSelf(funcContext, !isStatic, true);
+                
+                memberInstructions[name] = (result.Fetch, MemberType.Method, isStatic);
+            }
+            else if (member.class_property() != null)
+            {
+                var propContext = member.class_property();
+                var name = propContext.var_inst().ID().GetText();
+                
+                var expression = VisitExpression(propContext.expression());
+                
+                memberInstructions[name] = (expression, MemberType.Property, isStatic);
+            }
+        }
+        
+        var nameConstant = _getConstantSlot(VoxValue.Create(className));
+        
+        assemblyInstructions.AddRange([
+            new(OpCode.Load_Constant, nameConstant),
+            new(OpCode.Create_Class),
+        ]);
+
+        if (constructor != null)
+        {
+            var constructorConstant = _getConstantSlot(VoxValue.Create(constructor));
+            assemblyInstructions.AddRange([
+                new(OpCode.Load_Constant, constructorConstant),
+                new(OpCode.Mark_Ownership),
+                new(OpCode.Set_Constructor),
+            ]);
+        }
+
+        foreach (var pair in memberInstructions)
+        {
+            var info = pair.Value;
+            assemblyInstructions.AddRange(info.Item1);
+            
+            var memberNameConst = _getConstantSlot(VoxValue.Create(pair.Key));
+            assemblyInstructions.AddRange([
+                new(OpCode.Load_Constant, memberNameConst),
+                new(info.Item2 switch
+                {
+                    MemberType.Property => info.Item3 ? OpCode.Set_Static_Property : OpCode.Set_Instance_Property,
+                    MemberType.Method => info.Item3 ? OpCode.Set_Static_Method : OpCode.Set_Instance_Method
+                })
+            ]);
+        }
+        
+        assemblyInstructions.AddRange([
+            new(OpCode.Finalize_Class),
+            new(OpCode.Store_Local, localSlot)
+        ]);
+        
+        return assemblyInstructions.ToArray();
+    }
 }
