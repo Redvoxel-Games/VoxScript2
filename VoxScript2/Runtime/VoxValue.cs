@@ -42,7 +42,7 @@ public readonly struct VoxValue() : IEquatable<VoxValue>
     public static VoxValue Create(bool boolean) => new() { Type = ValueType.Bool, Bool = boolean };
     public static VoxValue Create(Indexable table) => new() { Type = ValueType.Table, Reference = table };
     public static VoxValue Create(FunctionPrototype function) => new() { Type = ValueType.Function, Reference = function };
-    public static VoxValue Create(Func<VoxValue[], VoxValue[]> function) => new() { Type = ValueType.Function, Reference = new NativeFunction(function) };
+    public static VoxValue Create(Func<FunctionInvokeInfo, VoxValue[]> function) => new() { Type = ValueType.Function, Reference = new NativeFunction(function) };
     public static VoxValue Create(Delegate @delegate) => new() { Type = ValueType.Function, Reference = @delegate };
     public static VoxValue Create(InstancedFunctionPrototype function) => new() { Type = ValueType.Function, Reference = function };
 
@@ -100,10 +100,10 @@ public readonly struct VoxValue() : IEquatable<VoxValue>
             var name = names[i];
             var value = values.GetValue(i);
             
-            table.Set(Create(name), FromObject(value!));
+            table.Set(Create(name), FromObject(value!), null);
         }
 
-        table.frozen = true;
+        table.Frozen = true;
 
         return table;
     }

@@ -29,6 +29,7 @@ public abstract class Test(string name)
     public static VxsRuntime BasicRuntime;
 
     protected VxsRuntime Runtime;
+    protected static VoxValue Null => VoxValue.Null;
 
     protected void UseRuntime(VxsRuntime runtime)
     {
@@ -105,7 +106,7 @@ public abstract class BasicTest(string name) : Test(name)
             }
 
             var matching = 0;
-            for (var i = 0; i < got; i++)
+            for (var i = 0; i < Math.Min(got, total); i++)
             {
                 if (output[i].Equals(ExpectedOutput[i]) || ExpectedOutput[i].IsNull)
                 {

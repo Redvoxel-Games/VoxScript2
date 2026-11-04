@@ -60,7 +60,7 @@ public class VxsThread
         
         var newInputs = new VoxValue[inputs.Length+1];
         
-        newInputs[0] = VoxValue.Create(proto.Object);
+        newInputs[0] = VoxValue.Create(proto.Instance);
         for (var i = 0; i < inputs.Length; i++)
         {
             newInputs[i+1] = inputs[i];
@@ -361,7 +361,7 @@ public class VxsThread
                         newClosure = new FunctionClosure(parents, instancedProto.Instructions, instancedProto.Constants, instancedProto.LocalCount+1);
 
                         var allArgs = new VoxValue[args.Length + 1];
-                        allArgs[0] = VoxValue.Create(instancedProto.Object);
+                        allArgs[0] = VoxValue.Create(instancedProto.Instance);
 
                         for (var i = 0; i < args.Length; i++)
                         {

@@ -573,6 +573,54 @@ internal class VxsBuilder(VxsRuntime runtime) : VoxScriptBaseVisitor<Instruction
         return all.ToArray();
     }
 
+    public override Instruction[] VisitArith_assign(Arith_assignContext context)
+    {
+        List<Instruction> all = [];
+
+        var identifier = context.identifier();
+        var idInstr = VisitIdentifierSelf(identifier, out var keyInstr, true);
+        var startVal = VisitIdentifierSelf(identifier, out _);
+
+        var expression = VisitExpression(context.expression());
+
+        Instruction[] arith = [
+            new(context.ASSIGNMENT().GetText() switch
+            {
+                "+=" => OpCode.Add,
+                "-=" => OpCode.Sub,
+                "*=" => OpCode.Mul,
+                "/=" => OpCode.Div,
+                
+                "^=" => OpCode.Pow,
+                "%=" => OpCode.Mod,
+                
+                _ => throw new NotImplementedException($"{context.ASSIGNMENT().GetText()} not implemented")
+            })
+        ];
+        
+        if (idInstr.Length == 0)
+        {
+            var store = _getStoreForVariable(identifier.ID().GetText());
+            all.AddRange(startVal);
+            all.AddRange(expression);
+            all.AddRange(arith);
+            all.AddRange(store);
+        }
+        else
+        {
+            all.AddRange(idInstr);
+            all.AddRange(keyInstr);
+            all.AddRange(startVal);
+            all.AddRange(expression);
+            all.AddRange(arith);
+            all.AddRange([
+                new(OpCode.Set_Key)
+            ]);
+        }
+        
+        return all.ToArray();
+    }
+
     public override Instruction[] VisitPrint(PrintContext context)
     {
         var exprInst = VisitExpression(context.expression());
