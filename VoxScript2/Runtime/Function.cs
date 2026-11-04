@@ -2,9 +2,7 @@
 
 namespace VoxScript.Runtime;
 
-public record FunctionInvokeInfo(VoxValue[] Arguments, VxsThread Thread);
-
-public sealed class FunctionPrototype(Instruction[] instructions, VoxValue[] constants, uint parameterCount, uint localCount, bool isMethod)
+public sealed class FunctionPrototype(Instruction[] instructions, VoxValue[] constants, uint parameterCount, uint localCount)
 {
     internal Closure _parentClosure;
     public readonly Instruction[] Instructions = instructions;
@@ -14,27 +12,12 @@ public sealed class FunctionPrototype(Instruction[] instructions, VoxValue[] con
     public readonly bool IsMethod = isMethod;
 }
 
-public sealed class InstancedFunctionPrototype(
-    Instruction[] instructions,
-    VoxValue[] constants,
-    uint parameterCount,
-    uint localCount,
-    VxsObject obj)
+public sealed class NativeFunction(Func<VoxValue[], VoxValue[]> function)
 {
-    internal Closure _parentClosure;
-    public readonly Instruction[] Instructions = instructions;
-    public readonly VoxValue[] Constants = constants;
-    public readonly uint ParameterCount = parameterCount;
-    public readonly uint LocalCount = localCount;
-    public readonly VxsObject Object = obj;
-}
+    public readonly Func<VoxValue[], VoxValue[]> Function = function;
 
-public sealed class NativeFunction(Func<FunctionInvokeInfo, VoxValue[]> function)
-{
-    public readonly Func<FunctionInvokeInfo, VoxValue[]> Function = function;
-
-    public VoxValue[] Invoke(VoxValue[] arguments, VxsThread thread)
+    public VoxValue[] Invoke(VoxValue[] arguments)
     {
-        return Function(new FunctionInvokeInfo(arguments, thread));
+        return Function(arguments);
     }
 }
