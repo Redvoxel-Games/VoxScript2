@@ -34,11 +34,17 @@ var globals = ScriptGlobals.Create()
     .AddStringLibrary()
     .Build();
 
+// Create runtime and connect to the print event
+var runtime = new VxsRuntime(globals);
+runtime.OnPrint += (value, thread) =>
+{
+    Console.WriteLine(value.AsString(thread));
+};
+
 // Compile source code into bytecode instructions
-var program = VxsCompiler.CompileScript(source, globals);
+var program = VxsCompiler.CompileScript(source, runtime);
 
 // Run the compiled code
-var runtime = new VxsRuntime(globals);
 runtime.RunProgram(program);
 ```
 
