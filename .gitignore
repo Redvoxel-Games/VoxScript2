@@ -3,6 +3,11 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
+.antlr
+
+[Bb]uild/
+[Oo]bjects/
+
 # dotenv files
 .env
 
