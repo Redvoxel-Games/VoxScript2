@@ -1,26 +1,20 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+	<Import Project="$(ProjectDir)../VoxScript2.props" />
 
-    <PropertyGroup>
-        <OutputType>Exe</OutputType>
-        <TargetFramework>net10.0</TargetFramework>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <Company>Redvoxel Games</Company>
-        <AssemblyVersion>1.0.0</AssemblyVersion>
-        <FileVersion>1.0.0</FileVersion>
-        <ApplicationIcon>./VoxScriptIcon.ico</ApplicationIcon>
-    </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
 
-    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-      <OutputPath>build</OutputPath>
-    </PropertyGroup>
+		<Company>Redvoxel Games</Company>
+		<AssemblyVersion>1.0.0</AssemblyVersion>
+		<FileVersion>1.0.0</FileVersion>
+		<ApplicationIcon>./VoxScriptIcon.ico</ApplicationIcon>
+	</PropertyGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\VoxScript2\VoxScript2.csproj" />
-    </ItemGroup>
-    
-    <ItemGroup>
-        <None Include="./VoxScriptIcon.ico" />
-    </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\VoxScript2\VoxScript2.csproj" />
+	</ItemGroup>
 
+	<ItemGroup>
+		<None Include="./VoxScriptIcon.ico" />
+	</ItemGroup>
 </Project>
